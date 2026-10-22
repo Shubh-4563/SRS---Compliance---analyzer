@@ -1,0 +1,140 @@
+# =============================================================================
+# SRS Compliance Analyzer — .gitignore
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Python bytecode & caches
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.dmypy.json
+dmypy.json
+
+# -----------------------------------------------------------------------------
+# Virtual environments
+# -----------------------------------------------------------------------------
+venv/
+.venv/
+env/
+.env/
+ENV/
+.conda/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# -----------------------------------------------------------------------------
+# Generated compliance reports (runtime outputs — not source artefacts)
+# Produced by main.py or demo scripts; regenerate at will, do not commit.
+# -----------------------------------------------------------------------------
+compliance_report.json
+compliance_report.md
+poc/compliance_report.json
+poc/compliance_report.md
+reports/
+output/
+
+# -----------------------------------------------------------------------------
+# Machine-learning model caches
+# sentence-transformers caches weights in ~/.cache/huggingface by default.
+# Guard against any local cache directory landing in the project root.
+# -----------------------------------------------------------------------------
+.cache/
+models/
+*.bin
+*.safetensors
+*.onnx
+huggingface/
+
+# -----------------------------------------------------------------------------
+# Jupyter / IPython artefacts
+# -----------------------------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb
+
+# -----------------------------------------------------------------------------
+# Coverage & testing artefacts
+# -----------------------------------------------------------------------------
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+
+# -----------------------------------------------------------------------------
+# Distribution / packaging
+# -----------------------------------------------------------------------------
+*.egg
+*.whl
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# -----------------------------------------------------------------------------
+# Environment / secret files — NEVER commit credentials or API keys
+# -----------------------------------------------------------------------------
+.env
+.env.*
+*.env
+*.secret
+secrets.json
+credentials.json
+token.json
+*.pem
+*.key
+*.p12
+id_rsa
+id_ed25519
+
+# -----------------------------------------------------------------------------
+# macOS artefacts
+# -----------------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# -----------------------------------------------------------------------------
+# Editor / IDE artefacts
+# -----------------------------------------------------------------------------
+# VS Code
+.vscode/
+*.code-workspace
+
+# JetBrains / PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim / Emacs
+*.swp
+*.swo
+*~
+\#*\#
+
+# -----------------------------------------------------------------------------
+# OS / temporary files
+# -----------------------------------------------------------------------------
+*.log
+*.tmp
+*.bak
+Thumbs.db
+Desktop.ini
+
+# -----------------------------------------------------------------------------
+# Data files — uncomment if you ever add proprietary/real-world SRS documents
+# -----------------------------------------------------------------------------
+# data/private/
+# data/customer_srs/

@@ -1,0 +1,5 @@
+REQ-001: The system shall display the aircraft altitude within 0.5 seconds.
+REQ-002: The system shall display altitude quickly.
+REQ-003: The system shall process incoming sensor data.
+REQ-004: The system shall provide a user-friendly interface.
+REQ-005: The system shall record the pilot login attempt and store the timestamp.

@@ -1,0 +1,56 @@
+{
+  "standard_name": "SRS Quality and Compliance Standard",
+  "version": "0.3",
+  "mandatory_sections": [
+    {
+      "id": "SEC-1",
+      "name": "Scope and System Overview",
+      "description": "High-level description of system purpose, operational scope, and subsystem boundaries."
+    },
+    {
+      "id": "SEC-2",
+      "name": "Functional Requirements",
+      "description": "Functional capabilities, actions, transformations, and system behavioral requirements."
+    },
+    {
+      "id": "SEC-3",
+      "name": "Interface Requirements",
+      "description": "Hardware, software, bus, communications protocol, and user interface specifications."
+    },
+    {
+      "id": "SEC-4",
+      "name": "Safety and Failure Handling",
+      "description": "Fault detection, exception handling, containment modes, and fail-safe recovery procedures."
+    }
+  ],
+  "rules": [
+    {
+      "id": "R1",
+      "name": "Unique Requirement ID",
+      "description": "Every requirement must have a unique identifier (e.g., REQ-001)."
+    },
+    {
+      "id": "R2",
+      "name": "Clear Behaviour",
+      "description": "The requirement must describe what the system shall do using clear binding normative language.",
+      "binding_modal": "shall"
+    },
+    {
+      "id": "R3",
+      "name": "Measurable Criteria",
+      "description": "The requirement should contain measurable/verifiable criteria where applicable."
+    },
+    {
+      "id": "R4",
+      "name": "Avoid Vague Language",
+      "description": "Detect vague words that introduce ambiguity into specifications.",
+      "vague_words": [
+        "quickly",
+        "fast",
+        "easy",
+        "adequate",
+        "user-friendly"
+      ]
+    }
+  ]
+}

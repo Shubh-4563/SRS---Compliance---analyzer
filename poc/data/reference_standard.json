@@ -1,0 +1,66 @@
+{
+  "standard_metadata": {
+    "title": "Avionics Software Requirement Verification Checklist & Quality Standard",
+    "version": "1.0",
+    "domain": "Critical Embedded & Avionics Systems (Tailored IV&V Baseline)"
+  },
+  "mandatory_sections": [
+    {
+      "id": "SEC-OVERVIEW",
+      "name": "Scope and System Overview",
+      "description": "High-level description of the system, operational scope, and subsystem boundaries."
+    },
+    {
+      "id": "SEC-FUNC",
+      "name": "Functional Requirements",
+      "description": "Deterministic functional requirements specifying software actions, transformations, and control logic."
+    },
+    {
+      "id": "SEC-IFACE",
+      "name": "Interface Requirements",
+      "description": "Hardware, protocol, bus, or inter-process communication interfaces and data formats."
+    },
+    {
+      "id": "SEC-SAFETY",
+      "name": "Safety and Failure Handling",
+      "description": "Fault detection, exception handling, containment modes, and fail-safe recovery procedures."
+    }
+  ],
+  "requirement_rules": [
+    {
+      "rule_id": "RULE-IDENTIFIER",
+      "rule_name": "Requirement Identifiability",
+      "category": "traceability",
+      "description": "Every requirement statement must begin with or contain a unique alphanumeric tracking identifier (e.g., REQ-XXX-000).",
+      "importance": "high"
+    },
+    {
+      "rule_id": "RULE-VERIFIABLE",
+      "rule_name": "Measurability and Verifiability",
+      "category": "verifiability",
+      "description": "Requirements must state quantitative, testable metrics and bounds rather than vague, subjective qualitative adjectives such as 'quickly', 'fast', 'easy', 'user-friendly', 'sufficient', 'approximately', 'optimal', or 'modern'.",
+      "importance": "critical"
+    },
+    {
+      "rule_id": "RULE-NORMATIVE",
+      "rule_name": "Unambiguous Normative Language",
+      "category": "clarity",
+      "description": "Requirements must enforce binding obligation using definitive modal auxiliary verbs ('shall' or 'must'). Non-binding modals such as 'should', 'may', 'could', 'might', or 'will' must not be used for functional specifications.",
+      "importance": "high"
+    },
+    {
+      "rule_id": "RULE-ATOMICITY",
+      "rule_name": "Requirement Atomicity",
+      "category": "completeness",
+      "description": "Each requirement must describe a single discrete testable obligation. Statements should avoid bundling multiple independent functions using multi-clause conjunctions ('and also', 'additionally', 'as well as').",
+      "importance": "medium"
+    },
+    {
+      "rule_id": "RULE-EXCEPTION",
+      "rule_name": "Exception and Degradation Handling",
+      "category": "safety",
+      "description": "Critical inputs, sensor feeds, or bus telemetry processing requirements should specify condition-action response for corrupted, missing, or out-of-bound data.",
+      "importance": "high"
+    }
+  ]
+}

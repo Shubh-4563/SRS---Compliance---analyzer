@@ -1,0 +1,19 @@
+# =============================================================================
+# SRS Compliance Analyzer — Python Dependencies
+# =============================================================================
+# Tested with Python 3.10+ on macOS (Apple Silicon & Intel).
+# Install: pip install -r requirements.txt
+
+# --- Core analysis & NLP ---
+sentence-transformers>=3.0.0   # Semantic embeddings (all-MiniLM-L6-v2)
+torch>=2.0.0                   # Backend for sentence-transformers
+
+# --- PDF processing ---
+pypdf>=4.0.0                   # Digital PDF text extraction (Version 0.4)
+
+# --- Sample PDF generation (scripts/generate_sample_pdfs.py only) ---
+reportlab>=4.0.0               # Creates test PDF fixtures
+Pillow>=9.0.0                  # Renders raster image for scanned PDF simulation
+
+# --- Standard library modules used (no install needed) ---
+# re, json, os, sys, argparse, dataclasses, typing, textwrap, pathlib
