@@ -20,15 +20,24 @@ from .analyzer import (
     RequirementExtractor,
     ComplianceAnalyzer,
     ReportGenerator,
+    TemplatePoint,
+    ReferenceTemplate,
+    PointMatchResult,
+    TemplateComplianceReport,
+    TemplateContentChecker,
 )
 
 from .pdf_extractor import (
     ScannedPDFError,
     PDFExtractionResult,
     PDFExtractor,
+    CandidateChunk,
+    EXPLICIT_ABSENCE_PATTERN,
     extract_text_from_pdf,
     extract_srs_from_pdf,
     extract_standard_from_pdf,
+    extract_template_from_pdf,
+    extract_chunks_from_pdf,
 )
 
 __all__ = [
@@ -48,11 +57,20 @@ __all__ = [
     "RequirementExtractor",
     "ComplianceAnalyzer",
     "ReportGenerator",
+    "TemplatePoint",
+    "ReferenceTemplate",
+    "PointMatchResult",
+    "TemplateComplianceReport",
+    "TemplateContentChecker",
     "ScannedPDFError",
     "PDFExtractionResult",
     "PDFExtractor",
+    "CandidateChunk",
+    "EXPLICIT_ABSENCE_PATTERN",
     "extract_text_from_pdf",
     "extract_srs_from_pdf",
     "extract_standard_from_pdf",
+    "extract_template_from_pdf",
+    "extract_chunks_from_pdf",
 ]
 

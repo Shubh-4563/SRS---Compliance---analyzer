@@ -9,10 +9,11 @@
 
 | Version | Capability |
 |---|---|
-| **v0.1** | Deterministic R1–R4 rule checks: unique IDs, `shall` enforcement, measurability, vague-language detection |
-| **v0.2** | Semantic section alignment — maps SRS sections to standard sections using `all-MiniLM-L6-v2` cosine similarity |
-| **v0.3** | Semantic requirement-to-rule matching — assigns each requirement the best-matching compliance rule |
+| **Phase 1** | **Reference Template Content Checker** — Extract required points/sections from template PDF; compare target PDF (whole document or `--page N`) using `all-MiniLM-L6-v2`; classify as COVERED, PARTIAL, or MISSING with nearest text evidence |
 | **v0.4** | PDF input support — extract text, sections, and requirements from digital PDFs; graceful scanned-PDF detection |
+| **v0.3** | Semantic requirement-to-rule matching — assigns each requirement the best-matching compliance rule |
+| **v0.2** | Semantic section alignment — maps SRS sections to standard sections using `all-MiniLM-L6-v2` cosine similarity |
+| **v0.1** | Deterministic R1–R4 rule checks: unique IDs, `shall` enforcement, measurability, vague-language detection |
 
 ### What the analyser checks (R1–R4)
 
@@ -82,21 +83,28 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Audit a plain-text SRS (default standard)
+### Reference-Template Content Compliance Check (Phase 1)
 ```bash
+# Check default target (sample_srs.pdf) against reference template (reference_standard.pdf)
 python3 main.py
-# Audits data/sample_srs.txt against data/reference_standard.json
+
+# Check custom target PDF against a reference template PDF
+python3 main.py --template data/sample_srs.pdf --target data/avionics_sample_srs.pdf
+
+# Check only a specific page of the target PDF (1-based index)
+python3 main.py --template data/sample_srs.pdf --target data/avionics_sample_srs.pdf --page 1
+
+# Configure cosine similarity decision thresholds
+python3 main.py --template data/sample_srs.pdf --target data/avionics_sample_srs.pdf --covered-threshold 0.75 --partial-threshold 0.45
+
+# Export Markdown and JSON reports
+python3 main.py --template data/reference_standard.pdf --target data/sample_srs.pdf --output-md report.md --output-json report.json
 ```
 
-### Audit any SRS file (.txt, .md, or .pdf)
+### Legacy Quality Rules Audit (v0.1–v0.4 R1–R4 Style Linter)
 ```bash
-python3 main.py --srs data/avionics_sample_srs.md
-python3 main.py --srs data/sample_srs.pdf
-```
-
-### Supply a custom reference standard (JSON or PDF)
-```bash
-python3 main.py --srs data/avionics_sample_srs.pdf --standard data/reference_standard.pdf
+# Run deterministic R1-R4 rules and section alignment
+python3 main.py --legacy-rules --srs data/sample_srs.txt --standard data/reference_standard.json
 ```
 
 ### Adjust the section-alignment similarity threshold

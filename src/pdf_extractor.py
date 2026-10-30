@@ -23,6 +23,8 @@ from src.analyzer import (
     ReferenceRule,
     ReferenceStandard,
     RequirementExtractor,
+    TemplatePoint,
+    ReferenceTemplate,
 )
 
 
@@ -63,6 +65,37 @@ class PDFExtractionResult:
     warning_message: Optional[str] = None
 
 
+class CandidateChunk(str):
+    """
+    Candidate text comparison chunk representing a single sentence or
+    a paragraph-constrained sliding window of adjacent sentences.
+    Inherits from str for complete backward compatibility.
+    """
+    def __new__(
+        cls,
+        text: str,
+        section_heading: str = "",
+        page_number: Optional[int] = None,
+        window_size: int = 1,
+        is_explicit_absence: bool = False
+    ):
+        instance = super().__new__(cls, text)
+        instance.text = text
+        instance.section_heading = section_heading
+        instance.page_number = page_number
+        instance.window_size = window_size
+        instance.is_explicit_absence = is_explicit_absence
+        return instance
+
+
+EXPLICIT_ABSENCE_PATTERN = re.compile(
+    r'\b(?:no|none|neither)\s+[^.!?]{1,120}?\s+(?:is|are|was|were)?\s*(?:discussed|provided|specified|included|documented|defined|described|mentioned|given|present|available|found)\b|'
+    r'\b(?:does not|do not|did not|is not|are not|cannot|will not|has not|have not)\s+(?:specify|explain|include|provide|contain|document|define|describe|mention|detail|list|cover|address|handle|state)\b|'
+    r'\b(?:omitted|deliberately omitted|intentionally omitted|not included|absent|not covered|not documented|not provided|not addressed)\b',
+    re.IGNORECASE
+)
+
+
 class PDFExtractor:
     """
     Modular engine for extracting text and domain entities from PDF documents:
@@ -86,10 +119,12 @@ class PDFExtractor:
     def extract_text(
         self,
         filepath: str,
+        page_number: Optional[int] = None,
         raise_if_scanned: bool = True
     ) -> PDFExtractionResult:
         """
-        Extracts raw text from a PDF document across all pages.
+        Extracts raw text from a PDF document across all pages, or from a specific
+        single page (1-based index) if page_number is provided.
         Detects scanned/image-only documents when extractable text is negligible.
         """
         if not os.path.exists(filepath):
@@ -100,12 +135,24 @@ class PDFExtractor:
         except Exception as e:
             raise ValueError(f"Failed to read PDF file '{filepath}': {e}") from e
 
-        pages_text: List[str] = []
-        page_count = len(reader.pages)
+        total_pages = len(reader.pages)
+        if total_pages == 0:
+            raise ValueError(f"PDF file '{filepath}' has 0 pages.")
 
-        for page in reader.pages:
+        if page_number is not None:
+            if page_number < 1 or page_number > total_pages:
+                raise ValueError(
+                    f"Page number {page_number} is out of range for '{os.path.basename(filepath)}'. "
+                    f"Document contains {total_pages} page(s) (valid range: 1 to {total_pages})."
+                )
+            target_indices = [page_number - 1]
+        else:
+            target_indices = list(range(total_pages))
+
+        pages_text: List[str] = []
+        for idx in target_indices:
             try:
-                page_text = page.extract_text() or ""
+                page_text = reader.pages[idx].extract_text() or ""
             except Exception:
                 page_text = ""
             pages_text.append(page_text)
@@ -113,26 +160,28 @@ class PDFExtractor:
         raw_full_text = "\n".join(pages_text)
         non_ws_chars = len(re.sub(r'\s+', '', raw_full_text))
         total_words = len(raw_full_text.split())
-        words_per_page = total_words / max(page_count, 1)
+        considered_page_count = len(target_indices)
+        words_per_page = total_words / max(considered_page_count, 1)
 
         is_scanned = (
-            page_count > 0 and (
-                non_ws_chars < self.min_total_chars or
+            considered_page_count > 0 and (
+                non_ws_chars < (self.min_total_chars if considered_page_count > 1 else 15) or
                 words_per_page < self.min_words_per_page
             )
         )
 
         warning_message = None
         if is_scanned:
+            page_scope = f"page {page_number}" if page_number is not None else f"across {total_pages} page(s)"
             warning_message = (
                 f"Optical Character Recognition (OCR) is required: "
-                f"Extracted only {non_ws_chars} character(s) across {page_count} page(s)."
+                f"Extracted only {non_ws_chars} character(s) {page_scope}."
             )
             if raise_if_scanned:
                 raise ScannedPDFError(
                     filepath=filepath,
                     char_count=non_ws_chars,
-                    page_count=page_count,
+                    page_count=considered_page_count,
                     message=warning_message
                 )
 
@@ -141,7 +190,7 @@ class PDFExtractor:
         return PDFExtractionResult(
             filepath=filepath,
             text=unwrapped_text,
-            page_count=page_count,
+            page_count=total_pages,
             char_count=non_ws_chars,
             word_count=total_words,
             pages_text=pages_text,
@@ -234,18 +283,384 @@ class PDFExtractor:
 
     def extract_srs_document(
         self,
-        filepath: str
+        filepath: str,
+        page_number: Optional[int] = None
     ) -> Tuple[List[DocumentSection], List[Requirement]]:
         """
-        Extracts structural sections and individual requirement items from an SRS PDF.
+        Extracts structural sections and individual requirement items from an SRS PDF
+        across all pages or from a single page.
         Returns:
             Tuple of (sections, requirements)
         """
-        result = self.extract_text(filepath, raise_if_scanned=True)
+        result = self.extract_text(filepath, page_number=page_number, raise_if_scanned=True)
         extractor = RequirementExtractor()
         sections = extractor.extract_sections_from_text(result.text)
         requirements = extractor.extract_from_text(result.text)
         return sections, requirements
+
+    def extract_template_from_text(
+        self,
+        text: str,
+        default_title: str = "Reference Template"
+    ) -> ReferenceTemplate:
+        """
+        Extracts structural sections and discrete required points from raw template text.
+
+        Extraction Heuristic:
+        1. Title: Extracted from common title headers or the first non-metadata, non-watermark line.
+        2. Sections: Tracked via markdown (#), numbered (1. Scope), lettered (A. Overview),
+           or tagged (Section 1) headings.
+        3. Points: Extracted from:
+           - Explicitly tagged requirement/checkpoint lines (e.g. REQ-xxx, SEC-xxx, R1, B1-B7, A1-A7, 1.1)
+           - Bullet points (-, *, •)
+           - Sub-numbered points (1.1, (a), (1))
+           - Instructional or normative statements containing actions (shall, must, should,
+             explain, describe, state, identify, list, include, provide, ensure, verify).
+        4. Topic Labels: If a point is formatted as "Topic: Description" or "Topic - Description",
+           both the topic label and description are captured for multi-perspective matching.
+
+        Limitations:
+        - Freeform narrative text without section headers, bullets, or requirement tags
+          will rely on sentence-level heuristics and may miss nuanced requirements.
+        - Tables and complex multi-column callouts rendered as disjointed text streams
+          may have broken ordering.
+        """
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        if not lines:
+            return ReferenceTemplate(title=default_title, points=[], sections=[])
+
+        # Metadata & noise patterns to ignore as requirement points
+        noise_pattern = re.compile(
+            r'^(?:Synthetic test document|Testing note|Designed test intent|Evaluation note|'
+            r'Standard Version|Standard|Regulatory Baseline|Binding Modal|'
+            r'Prohibited Vague Words|Title|Author|Date|Version)[:\s–—\-]',
+            re.IGNORECASE
+        )
+
+        # Section header patterns
+        header_pattern = re.compile(
+            r'^(?:'
+            r'#+\s+'                             # Markdown headings (# Title)
+            r'|[A-Z]\.\s+[A-Za-z]'              # A. Section Title
+            r'|\d+(?:\.\d+)*[\.\:\-\s]+[A-Z]'  # 1. Section Title, 1.1 Overview
+            r'|Section\s+\d+'                    # Section 1
+            r')',
+            re.IGNORECASE
+        )
+
+        # Explicit requirement/checkpoint ID pattern: supports B1-B7, A1-A7, REQ-001, SEC-1, R1-R4, 1.1, etc.
+        id_pattern = re.compile(
+            r'^([A-Z]{1,4}[-_]?[0-9]+|(?:REQ|SRS|SYS|RULE|SEC|CHECK|POINT)[-_][A-Za-z0-9_-]+|\d+\.\d+)\s*[:\.\-–]\s*(.*)$',
+            re.IGNORECASE
+        )
+
+        # Bullet and numbered point patterns
+        bullet_pattern = re.compile(r'^[-*•]\s+(.*)$')
+        numbered_point_pattern = re.compile(r'^(?:\d+\.\d+|\(\d+\)|\([a-z]\))\s+(.*)$', re.IGNORECASE)
+
+        # Normative and instructional keywords for fallback point detection
+        normative_and_instructional_keywords = [
+            "shall", "must", "should", "will", "requires", "require", "ensure",
+            "verify", "display", "explain", "describe", "state", "identify",
+            "list", "include", "provide", "record"
+        ]
+
+        # Extract title
+        title = default_title
+        title_match = re.search(
+            r'^(?:Reference Standard|Template|Standard Name|Specification|Software Requirements Specification)[:\s]+([^\n\|]+)',
+            text,
+            re.MULTILINE | re.IGNORECASE
+        )
+        if title_match:
+            title = title_match.group(1).strip()
+        else:
+            # Pick first substantive line that is not a banner, header, or ID
+            for l in lines:
+                if (
+                    not noise_pattern.search(l)
+                    and "created for prototype evaluation" not in l
+                    and not header_pattern.match(l)
+                    and not id_pattern.match(l)
+                ):
+                    title = l.strip()
+                    break
+
+        points: List[TemplatePoint] = []
+        sections: List[str] = []
+        current_section = "General"
+        point_counter = 1
+
+        for line_num, line in enumerate(lines, start=1):
+            if (
+                noise_pattern.search(line)
+                or "created for prototype evaluation" in line
+                or line.startswith("Testing note:")
+            ):
+                continue
+
+            id_match = id_pattern.match(line)
+
+            # Check if this line is purely a section header (and not a tagged point)
+            if not id_match and header_pattern.match(line):
+                clean_sec = re.sub(
+                    r'^(?:#+\s*|[A-Z]\.\s*|\d+(?:\.\d+)*[\.\:\-\s]*|Section\s+\d+[\.\:\-\s]*)',
+                    '',
+                    line
+                ).strip()
+                current_section = clean_sec if clean_sec else line
+                if current_section not in sections:
+                    sections.append(current_section)
+                continue
+
+            if id_match:
+                pid = id_match.group(1).upper()
+                body = id_match.group(2).strip()
+                text_val = body if body else line
+
+                # Separate topic label vs detailed description if present
+                split_match = re.match(r'^([A-Za-z0-9\s/&,]{2,40}?)\s*(?::|\s+[-–—]\s+)(.+)$', body)
+                if split_match:
+                    topic = split_match.group(1).strip()
+                    desc = split_match.group(2).strip()
+                else:
+                    topic = ""
+                    desc = body
+
+                points.append(
+                    TemplatePoint(
+                        point_id=pid,
+                        section_name=current_section,
+                        text=text_val,
+                        topic_label=topic,
+                        description=desc,
+                        line_number=line_num,
+                        raw_line=line
+                    )
+                )
+                point_counter += 1
+            elif bullet_pattern.match(line):
+                body = bullet_pattern.match(line).group(1).strip()
+                split_match = re.match(r'^([A-Za-z0-9\s/&,]{2,40}?)\s*(?::|\s+[-–—]\s+)(.+)$', body)
+                topic = split_match.group(1).strip() if split_match else ""
+                desc = split_match.group(2).strip() if split_match else body
+                points.append(
+                    TemplatePoint(
+                        point_id=f"PT-{point_counter:03d}",
+                        section_name=current_section,
+                        text=body,
+                        topic_label=topic,
+                        description=desc,
+                        line_number=line_num,
+                        raw_line=line
+                    )
+                )
+                point_counter += 1
+            elif numbered_point_pattern.match(line):
+                body = numbered_point_pattern.match(line).group(1).strip()
+                split_match = re.match(r'^([A-Za-z0-9\s/&,]{2,40}?)\s*(?::|\s+[-–—]\s+)(.+)$', body)
+                topic = split_match.group(1).strip() if split_match else ""
+                desc = split_match.group(2).strip() if split_match else body
+                points.append(
+                    TemplatePoint(
+                        point_id=f"PT-{point_counter:03d}",
+                        section_name=current_section,
+                        text=body,
+                        topic_label=topic,
+                        description=desc,
+                        line_number=line_num,
+                        raw_line=line
+                    )
+                )
+                point_counter += 1
+            elif len(line) >= 25 and any(re.search(rf'\b{kw}\b', line, re.IGNORECASE) for kw in normative_and_instructional_keywords):
+                # Don't duplicate the title line as a point
+                if line != title:
+                    split_match = re.match(r'^([A-Za-z0-9\s/&,]{2,40}?)\s*(?::|\s+[-–—]\s+)(.+)$', line)
+                    topic = split_match.group(1).strip() if split_match else ""
+                    desc = split_match.group(2).strip() if split_match else line
+                    points.append(
+                        TemplatePoint(
+                            point_id=f"PT-{point_counter:03d}",
+                            section_name=current_section,
+                            text=line,
+                            topic_label=topic,
+                            description=desc,
+                            line_number=line_num,
+                            raw_line=line
+                        )
+                    )
+                    point_counter += 1
+
+        return ReferenceTemplate(
+            title=title,
+            points=points,
+            sections=sections if sections else ["General"]
+        )
+
+    def extract_template(self, filepath: str) -> ReferenceTemplate:
+        """
+        Extracts required sections and points from a reference template PDF.
+        """
+        result = self.extract_text(filepath, raise_if_scanned=True)
+        default_title = os.path.splitext(os.path.basename(filepath))[0].replace("_", " ").title()
+        return self.extract_template_from_text(result.text, default_title=default_title)
+
+    def extract_target_chunks(
+        self,
+        filepath: str,
+        page_number: Optional[int] = None
+    ) -> List[CandidateChunk]:
+        """
+        Extracts candidate comparison text chunks (individual sentences, 2-sentence windows,
+        and 3-sentence windows constrained strictly to paragraph boundaries) from a target PDF.
+        Preserves original evidence text, page numbers, and enclosing section headings.
+        Filters out standalone section headings, running headers/footers, and test notes.
+        """
+        result = self.extract_text(filepath, page_number=page_number, raise_if_scanned=True)
+
+        def is_target_noise(l: str) -> bool:
+            if not l:
+                return True
+            # 1. Banners, footers, watermarks
+            if re.search(r'Synthetic test document|created for prototype evaluation|Target document\s+[A-Z]|Reference document\s+[A-Z]', l, re.IGNORECASE):
+                return True
+            if re.match(r'^Page\s+\d+(?:\s+of\s+\d+)?$', l, re.IGNORECASE):
+                return True
+            # 2. Test intent / meta notes
+            if re.match(r'^(?:Designed test intent|Testing note|Evaluation note|Test intent|Note:)', l, re.IGNORECASE):
+                return True
+            return False
+
+        def parse_heading(l: str) -> Optional[str]:
+            heading_match = re.match(
+                r'^(?:#+\s*|\d+(?:\.\d+)*[\.\:\-\s]+|[A-Z]\.[\.\:\-\s]+|Section\s+\d+[\.\:\-\s]+)([A-Za-z0-9\s/&,-]+)$',
+                l,
+                re.IGNORECASE
+            )
+            if heading_match:
+                heading_title = heading_match.group(1).strip()
+                if not l.endswith(('.', '?', '!', ':')) or len(heading_title.split()) <= 6:
+                    verbs = {
+                        'is', 'are', 'was', 'were', 'has', 'have', 'shall', 'should',
+                        'will', 'must', 'can', 'does', 'do', 'helps', 'monitors',
+                        'monitored', 'collects', 'collected', 'displays', 'displayed', 'used'
+                    }
+                    words = set(re.findall(r'\b[a-z]+\b', heading_title.lower()))
+                    if not (words & verbs):
+                        return heading_title
+            return None
+
+        chunks: List[CandidateChunk] = []
+        seen = set()
+
+        # Determine which pages to process
+        if page_number is not None:
+            pages_to_process = [(page_number, result.pages_text[0] if result.pages_text else result.text)]
+        else:
+            pages_to_process = list(enumerate(result.pages_text, start=1)) if result.pages_text else [(1, result.text)]
+
+        for page_idx, page_str in pages_to_process:
+            page_text = self.unwrap_text(page_str)
+            curr_heading = ""
+            curr_paragraph_sentences: List[str] = []
+
+            def flush_paragraph():
+                nonlocal curr_paragraph_sentences
+                if not curr_paragraph_sentences:
+                    return
+
+                # Segment into consecutive non-absence runs and individual absence statements
+                runs: List[Tuple[List[str], bool]] = []
+                curr_run: List[str] = []
+                for s in curr_paragraph_sentences:
+                    if EXPLICIT_ABSENCE_PATTERN.search(s):
+                        if curr_run:
+                            runs.append((curr_run, False))
+                            curr_run = []
+                        runs.append(([s], True))
+                    else:
+                        curr_run.append(s)
+                if curr_run:
+                    runs.append((curr_run, False))
+
+                for sentence_group, is_absence in runs:
+                    k = len(sentence_group)
+                    # 1. Single sentences
+                    for s in sentence_group:
+                        if s not in seen:
+                            seen.add(s)
+                            chunks.append(
+                                CandidateChunk(
+                                    text=s,
+                                    section_heading=curr_heading,
+                                    page_number=page_idx,
+                                    window_size=1,
+                                    is_explicit_absence=is_absence
+                                )
+                            )
+                    # 2. Two-sentence sliding windows (only for substantive sentences)
+                    if not is_absence and k >= 2:
+                        for i in range(k - 1):
+                            w2 = f"{sentence_group[i]} {sentence_group[i+1]}"
+                            if w2 not in seen:
+                                seen.add(w2)
+                                chunks.append(
+                                    CandidateChunk(
+                                        text=w2,
+                                        section_heading=curr_heading,
+                                        page_number=page_idx,
+                                        window_size=2,
+                                        is_explicit_absence=False
+                                    )
+                                )
+                    # 3. Three-sentence sliding windows (only for substantive sentences)
+                    if not is_absence and k >= 3:
+                        for i in range(k - 2):
+                            w3 = f"{sentence_group[i]} {sentence_group[i+1]} {sentence_group[i+2]}"
+                            if w3 not in seen:
+                                seen.add(w3)
+                                chunks.append(
+                                    CandidateChunk(
+                                        text=w3,
+                                        section_heading=curr_heading,
+                                        page_number=page_idx,
+                                        window_size=3,
+                                        is_explicit_absence=False
+                                    )
+                                )
+
+                curr_paragraph_sentences = []
+
+            for line in page_text.splitlines():
+                line = line.strip()
+                if not line:
+                    flush_paragraph()
+                    continue
+
+                heading_found = parse_heading(line)
+                if heading_found:
+                    flush_paragraph()
+                    curr_heading = heading_found
+                    continue
+
+                if is_target_noise(line):
+                    continue
+
+                # Multi-sentence splitting on terminal punctuation
+                if "." in line or "?" in line or "!" in line:
+                    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z0-9])', line)
+                    for s in sentences:
+                        s_clean = s.strip()
+                        if len(s_clean) >= 15 and not is_target_noise(s_clean):
+                            curr_paragraph_sentences.append(s_clean)
+                else:
+                    if len(line) >= 15:
+                        curr_paragraph_sentences.append(line)
+
+            flush_paragraph()
+
+        return chunks
 
     def extract_reference_standard(self, filepath: str) -> ReferenceStandard:
         """
@@ -341,18 +756,29 @@ class PDFExtractor:
 
 
 # Module-level convenience functions
-def extract_text_from_pdf(filepath: str) -> str:
-    """Convenience function to extract text from a PDF file."""
-    return PDFExtractor().extract_text(filepath).text
+def extract_text_from_pdf(filepath: str, page_number: Optional[int] = None) -> str:
+    """Convenience function to extract text from a PDF file (all pages or single page)."""
+    return PDFExtractor().extract_text(filepath, page_number=page_number).text
 
 
 def extract_srs_from_pdf(
-    filepath: str
+    filepath: str,
+    page_number: Optional[int] = None
 ) -> Tuple[List[DocumentSection], List[Requirement]]:
     """Convenience function to extract SRS sections and requirements from a PDF file."""
-    return PDFExtractor().extract_srs_document(filepath)
+    return PDFExtractor().extract_srs_document(filepath, page_number=page_number)
 
 
 def extract_standard_from_pdf(filepath: str) -> ReferenceStandard:
     """Convenience function to parse a ReferenceStandard from a PDF file."""
     return PDFExtractor().extract_reference_standard(filepath)
+
+
+def extract_template_from_pdf(filepath: str) -> ReferenceTemplate:
+    """Convenience function to parse a ReferenceTemplate from a PDF file."""
+    return PDFExtractor().extract_template(filepath)
+
+
+def extract_chunks_from_pdf(filepath: str, page_number: Optional[int] = None) -> List[CandidateChunk]:
+    """Convenience function to extract paragraph-constrained candidate chunks from a PDF file."""
+    return PDFExtractor().extract_target_chunks(filepath, page_number=page_number)

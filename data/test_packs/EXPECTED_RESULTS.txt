@@ -1,0 +1,37 @@
+REFERENCE/TARGET PDF TEST PACK
+================================
+
+Use these pairs to evaluate the prototype in a controlled way.
+
+PAIR B — General technical document (recommended first)
+- B_reference_technical_template.pdf = reference/template
+- B_target_technical_document.pdf = target
+
+Expected content, judged by a human:
+- B1 Purpose: present
+- B2 Scope and boundaries: present
+- B3 Core functions: present
+- B4 Interfaces: partial (users/browser and sensor gateway are named, but details are incomplete)
+- B5 Safety/failure handling: partial (sensor-loss warning is described, broader response/recovery is absent)
+- B6 Measurable acceptance criteria: missing
+- B7 Testing: present
+
+PAIR A — Practical/laboratory report (secondary test)
+- A_reference_lab_report_template.pdf = reference/template
+- A_target_lab_report.pdf = target
+
+Expected content, judged by a human:
+- A1 Aim: present
+- A2 Materials: present
+- A3 Procedure: present
+- A4 Observations: present
+- A5 Analysis: present
+- A6 Result: present
+- A7 Safety: missing
+
+IMPORTANT
+1. These are synthetic starter documents, not validated real-world benchmarks.
+2. “Expected” labels are human judgments about content, not guaranteed model outputs. Similarity thresholds can misclassify partial content.
+3. Compare the analyzer's evidence snippets to the actual target paragraphs. Generic title/heading text should not be accepted as strong evidence for a required point.
+4. Start with Pair B. If the analyzer gets the clear present/missing cases wrong, fix extraction/matching before tuning thresholds or adding OCR.
+5. The current PDF text extractor should work on these digitally generated PDFs. Image/OCR testing is a separate later phase.

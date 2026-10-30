@@ -46,11 +46,12 @@ output/
 # Guard against any local cache directory landing in the project root.
 # -----------------------------------------------------------------------------
 .cache/
-models/
+/models/
 *.bin
 *.safetensors
 *.onnx
 huggingface/
+.backup_v1_phase1_1/
 
 # -----------------------------------------------------------------------------
 # Jupyter / IPython artefacts

@@ -146,6 +146,61 @@ class ComplianceReport:
     sections_summary: Dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class TemplatePoint:
+    """A single required section or content point from a reference template."""
+    point_id: str
+    section_name: str
+    text: str
+    topic_label: str = ""
+    description: str = ""
+    line_number: int = 0
+    raw_line: str = ""
+
+
+@dataclass
+class ReferenceTemplate:
+    """A collection of required sections and points extracted from a reference template."""
+    title: str
+    points: List[TemplatePoint] = field(default_factory=list)
+    sections: List[str] = field(default_factory=list)
+
+
+@dataclass
+class PointMatchResult:
+    """Outcome of comparing a single required template point against the target document."""
+    point_id: str
+    section_name: str
+    reference_text: str
+    status: str                         # "COVERED", "PARTIAL", or "MISSING"
+    similarity_score: float             # Angular cosine similarity in [-1.0, 1.0]
+    matched_text: Optional[str] = None  # Closest matching text evidence found in target
+    notes: str = ""
+    winning_perspective: str = ""       # "canonical", "full", or "topic"
+    evidence_tier: str = "NONE"         # "STRONG", "PARTIAL", "WEAK", "NONE", or "EXPLICIT_ABSENCE"
+    is_explicit_absence: bool = False   # True if target explicitly confirms absence/omission
+    matched_page: Optional[int] = None  # Page number of matched evidence snippet
+
+
+@dataclass
+class TemplateComplianceReport:
+    """Compliance verification report comparing a reference template against a target document."""
+    template_title: str
+    target_name: str
+    target_page: Optional[int]
+    total_pages: int
+    covered_threshold: float
+    partial_threshold: float
+    min_evidence_threshold: float
+    total_points: int
+    covered_count: int
+    partial_count: int
+    missing_count: int
+    coverage_percentage: float
+    results: List[PointMatchResult]
+    sections_summary: Dict[str, Any] = field(default_factory=dict)
+
+
 class ReferenceStandard:
     """Loads and encapsulates compliance rules, mandatory sections, and parameters."""
 
@@ -324,7 +379,14 @@ class SemanticSectionMatcher:
             SentenceTransformer, _ = _import_sentence_transformers()
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore")
-                self._model = SentenceTransformer(self.model_name, device=self.device)
+                try:
+                    self._model = SentenceTransformer(
+                        self.model_name,
+                        device=self.device,
+                        local_files_only=True
+                    )
+                except Exception:
+                    self._model = SentenceTransformer(self.model_name, device=self.device)
         return self._model
 
     def compute_similarity(self, text_a: str, text_b: str) -> float:
@@ -922,6 +984,380 @@ class ComplianceAnalyzer:
         )
 
 
+def canonicalize_instruction(text: str) -> str:
+    """
+    Deterministic canonicalization of instructional boilerplate into a declarative retrieval query.
+    Preserves all core domain terms and original requirement meaning.
+    """
+    s = text.strip()
+    pat = (
+        r'^(?:Explain|Describe|State|Identify|Provide|List|Record|Detail|Include|Specify|Outline|Define|Discuss)'
+        r'(?:\s+(?:what\s+is|what|how|whether|the|any|all|at\s+least\s+one))?\s+'
+    )
+    match = re.match(pat, s, re.IGNORECASE)
+    if match:
+        s = s[match.end():].strip()
+    if s:
+        s = s[0].upper() + s[1:]
+    return s
+
+
+class TemplateContentChecker:
+    """
+    Compares required points from a ReferenceTemplate against candidate text
+    chunks extracted from a target document or single page using dense embeddings
+    (sentence-transformers all-MiniLM-L6-v2) and configurable cosine similarity thresholds.
+
+    Classification Rules (strictly threshold-based cosine similarity, not probabilities):
+    - COVERED : similarity_score >= covered_threshold (default: 0.70)
+    - PARTIAL : partial_threshold <= similarity_score < covered_threshold (default: 0.50)
+    - MISSING : similarity_score < partial_threshold (default: < 0.50)
+
+    Evidence Safeguards:
+    - Minimum evidence threshold (default: 0.38): Chunks scoring below this are not shown as evidence.
+    - Topic-only safeguard: A topic label match cannot establish compliance without substantive description support.
+    - Explicit absence detection: Statements confirming that a requirement is missing are flagged and never count as compliance.
+    - Multi-sentence window preference: Prefers shortest evidence candidate when scores are within 0.03.
+    """
+    DEFAULT_COVERED_THRESHOLD: float = 0.70
+    DEFAULT_PARTIAL_THRESHOLD: float = 0.50
+    DEFAULT_MIN_EVIDENCE_THRESHOLD: float = 0.38
+
+    def __init__(
+        self,
+        matcher: Optional[SemanticSectionMatcher] = None,
+        covered_threshold: float = DEFAULT_COVERED_THRESHOLD,
+        partial_threshold: float = DEFAULT_PARTIAL_THRESHOLD,
+        min_evidence_threshold: float = DEFAULT_MIN_EVIDENCE_THRESHOLD
+    ):
+        if partial_threshold > covered_threshold:
+            raise ValueError(
+                f"partial_threshold ({partial_threshold}) cannot be greater than covered_threshold ({covered_threshold})."
+            )
+        if min_evidence_threshold > partial_threshold:
+            raise ValueError(
+                f"min_evidence_threshold ({min_evidence_threshold}) cannot exceed partial_threshold ({partial_threshold})."
+            )
+        self.matcher = matcher or SemanticSectionMatcher()
+        self.covered_threshold = covered_threshold
+        self.partial_threshold = partial_threshold
+        self.min_evidence_threshold = min_evidence_threshold
+
+    def check_compliance(
+        self,
+        template: ReferenceTemplate,
+        target_chunks: List[Any],
+        target_name: str = "Target Document",
+        target_page: Optional[int] = None,
+        total_pages: int = 1
+    ) -> TemplateComplianceReport:
+        """
+        Compares each template point against candidate target chunks using
+        multi-perspective embeddings, multi-sentence sliding windows, and evidence safeguards.
+        """
+        if not template.points:
+            return TemplateComplianceReport(
+                template_title=template.title,
+                target_name=target_name,
+                target_page=target_page,
+                total_pages=total_pages,
+                covered_threshold=self.covered_threshold,
+                partial_threshold=self.partial_threshold,
+                min_evidence_threshold=self.min_evidence_threshold,
+                total_points=0,
+                covered_count=0,
+                partial_count=0,
+                missing_count=0,
+                coverage_percentage=0.0,
+                results=[],
+                sections_summary={"message": "No points found in reference template."}
+            )
+
+        # Import absence pattern and CandidateChunk from pdf_extractor
+        from src.pdf_extractor import CandidateChunk, EXPLICIT_ABSENCE_PATTERN
+
+        # Parse target chunk metadata
+        chunk_texts: List[str] = []
+        chunk_reprs: List[str] = []
+        chunk_absences: List[bool] = []
+        chunk_windows: List[int] = []
+        chunk_pages: List[Optional[int]] = []
+
+        for c in target_chunks:
+            c_str = str(c).strip()
+            if len(c_str) < 5:
+                continue
+            chunk_texts.append(c_str)
+            if isinstance(c, CandidateChunk):
+                heading_ctx = f"[{c.section_heading}] " if c.section_heading else ""
+                chunk_reprs.append(f"{heading_ctx}{c_str}")
+                chunk_absences.append(bool(c.is_explicit_absence))
+                chunk_windows.append(c.window_size)
+                chunk_pages.append(c.page_number)
+            else:
+                chunk_reprs.append(c_str)
+                chunk_absences.append(bool(EXPLICIT_ABSENCE_PATTERN.search(c_str)))
+                chunk_windows.append(1)
+                chunk_pages.append(None)
+
+        # Handle empty target document
+        if not chunk_texts:
+            results = [
+                PointMatchResult(
+                    point_id=p.point_id,
+                    section_name=p.section_name,
+                    reference_text=p.text,
+                    status="MISSING",
+                    similarity_score=0.0,
+                    matched_text=None,
+                    notes="Target document or page contains no extractable text content.",
+                    evidence_tier="NONE"
+                )
+                for p in template.points
+            ]
+            return TemplateComplianceReport(
+                template_title=template.title,
+                target_name=target_name,
+                target_page=target_page,
+                total_pages=total_pages,
+                covered_threshold=self.covered_threshold,
+                partial_threshold=self.partial_threshold,
+                min_evidence_threshold=self.min_evidence_threshold,
+                total_points=len(results),
+                covered_count=0,
+                partial_count=0,
+                missing_count=len(results),
+                coverage_percentage=0.0,
+                results=results,
+                sections_summary={"message": "Target document contains no text."}
+            )
+
+        _, util = _import_sentence_transformers()
+
+        # Multi-perspective point representations:
+        # 1. Full prompt: combines topic label and detailed description
+        full_prompts = [
+            f"{p.topic_label}: {p.description}" if p.topic_label and p.description else p.text
+            for p in template.points
+        ]
+        # 2. Canonical query projection: topic + canonical description
+        canon_prompts = [
+            f"{p.topic_label}: {canonicalize_instruction(p.description or p.text)}" if p.topic_label
+            else canonicalize_instruction(p.text)
+            for p in template.points
+        ]
+
+        # 3. Topic/Concept prompt: pairs section context with core topic name
+        topic_prompts = [
+            f"{p.section_name}: {p.topic_label}" if p.topic_label else f"{p.section_name}: {p.text}"
+            for p in template.points
+        ]
+
+        # Batch encode all embeddings
+        target_embs = self.matcher.model.encode(chunk_reprs, convert_to_tensor=True, show_progress_bar=False)
+        full_embs = self.matcher.model.encode(full_prompts, convert_to_tensor=True, show_progress_bar=False)
+        canon_embs = self.matcher.model.encode(canon_prompts, convert_to_tensor=True, show_progress_bar=False)
+        topic_embs = self.matcher.model.encode(topic_prompts, convert_to_tensor=True, show_progress_bar=False)
+
+        # Compute pairwise cosine similarities across representations
+        sim_full = util.cos_sim(full_embs, target_embs)
+        sim_canon = util.cos_sim(canon_embs, target_embs)
+        sim_topic = util.cos_sim(topic_embs, target_embs)
+
+        results: List[PointMatchResult] = []
+        covered_count = 0
+        partial_count = 0
+        missing_count = 0
+
+        for i, point in enumerate(template.points):
+            candidate_evals = []
+            for j in range(len(chunk_texts)):
+                s_f = float(sim_full[i, j].item())
+                s_c = float(sim_canon[i, j].item())
+                s_t = float(sim_topic[i, j].item())
+
+                # Substantive support from requirement description / canonical representation
+                s_substantive = max(s_f, s_c)
+
+                # Safeguard 1: Topic-only match cannot establish compliance on its own
+                # If topic score is high but description support is below min_evidence_threshold,
+                # the match is deemed coincidental keyword overlap.
+                if s_t > s_substantive and s_substantive < self.min_evidence_threshold:
+                    eff_score = s_substantive
+                    persp = "canonical" if s_c >= s_f else "full"
+                else:
+                    eff_score = max(s_f, s_c, s_t)
+                    if eff_score == s_t:
+                        persp = "topic"
+                    elif eff_score == s_c:
+                        persp = "canonical"
+                    else:
+                        persp = "full"
+
+                candidate_evals.append({
+                    "idx": j,
+                    "text": chunk_texts[j],
+                    "score": round(eff_score, 4),
+                    "substantive_score": round(s_substantive, 4),
+                    "window_size": chunk_windows[j],
+                    "is_absence": chunk_absences[j],
+                    "perspective": persp,
+                    "page": chunk_pages[j]
+                })
+
+            # Check for explicit absence statement semantically relevant to this requirement
+            relevant_absence_candidates = [
+                c for c in candidate_evals
+                if c["is_absence"] and c["substantive_score"] >= self.min_evidence_threshold
+            ]
+
+            # Positive (non-absence) candidates
+            positive_candidates = [c for c in candidate_evals if not c["is_absence"]]
+            max_positive_score = max((c["score"] for c in positive_candidates), default=0.0)
+
+            # Safeguard 2: Explicit Absence Handling
+            if relevant_absence_candidates and max_positive_score < self.partial_threshold:
+                # Target explicitly indicates this requirement is absent/omitted
+                best_absence = max(relevant_absence_candidates, key=lambda x: x["substantive_score"])
+                status = "MISSING"
+                missing_count += 1
+                evidence = best_absence["text"]
+                evidence_tier = "EXPLICIT_ABSENCE"
+                notes = (
+                    f"Target document explicitly confirms absence or omission of this requirement "
+                    f"(cosine similarity: {best_absence['score']:.4f}, via {best_absence['perspective']}): '{evidence}'."
+                )
+                results.append(
+                    PointMatchResult(
+                        point_id=point.point_id,
+                        section_name=point.section_name,
+                        reference_text=point.text,
+                        status=status,
+                        similarity_score=best_absence["score"],
+                        matched_text=evidence,
+                        notes=notes,
+                        winning_perspective=best_absence["perspective"],
+                        evidence_tier=evidence_tier,
+                        is_explicit_absence=True,
+                        matched_page=best_absence["page"]
+                    )
+                )
+                continue
+
+            # Multi-Sentence Window Preference:
+            # When multiple candidates have comparable scores (within 0.03), prefer the shortest snippet.
+            max_score = max(c["score"] for c in candidate_evals)
+            close_candidates = [c for c in candidate_evals if c["score"] >= max_score - 0.03]
+            close_candidates.sort(key=lambda x: (x["window_size"], -x["score"]))
+            best = close_candidates[0]
+
+            score = best["score"]
+            evidence_text = best["text"]
+            persp = best["perspective"]
+            page = best["page"]
+            is_absence_noted = False
+
+            # Check if there is an omission note accompanying partial positive evidence
+            if relevant_absence_candidates and score >= self.partial_threshold:
+                is_absence_noted = True
+                absence_note_text = relevant_absence_candidates[0]["text"]
+            else:
+                absence_note_text = ""
+
+            # Classification and Evidence Tiers
+            if score >= self.covered_threshold:
+                status = "COVERED"
+                covered_count += 1
+                evidence_tier = "STRONG"
+                evidence = evidence_text
+                notes = f"Requirement satisfied (cosine similarity {score:.4f} >= {self.covered_threshold:.2f}, via {persp})."
+            elif score >= self.partial_threshold:
+                status = "PARTIAL"
+                partial_count += 1
+                evidence_tier = "PARTIAL"
+                evidence = evidence_text
+                if is_absence_noted:
+                    notes = (
+                        f"Partial semantic match (cosine similarity {score:.4f} in "
+                        f"[{self.partial_threshold:.2f}, {self.covered_threshold:.2f}), via {persp}), "
+                        f"with explicit target omission noted: '{absence_note_text}'."
+                    )
+                else:
+                    notes = (
+                        f"Partial semantic match (cosine similarity {score:.4f} in "
+                        f"[{self.partial_threshold:.2f}, {self.covered_threshold:.2f}), via {persp}). Review required."
+                    )
+            elif score >= self.min_evidence_threshold:
+                status = "MISSING"
+                missing_count += 1
+                evidence_tier = "WEAK"
+                evidence = evidence_text
+                notes = (
+                    f"Requirement missing in target (weak candidate with cosine similarity "
+                    f"{score:.4f} in [{self.min_evidence_threshold:.2f}, {self.partial_threshold:.2f}), via {persp}). "
+                    f"Insufficient evidence to establish coverage."
+                )
+            else:
+                status = "MISSING"
+                missing_count += 1
+                evidence_tier = "NONE"
+                evidence = None
+                notes = (
+                    f"No relevant evidence found in target document "
+                    f"(highest candidate cosine similarity was {score:.4f} < {self.min_evidence_threshold:.2f})."
+                )
+
+            results.append(
+                PointMatchResult(
+                    point_id=point.point_id,
+                    section_name=point.section_name,
+                    reference_text=point.text,
+                    status=status,
+                    similarity_score=score,
+                    matched_text=evidence,
+                    notes=notes,
+                    winning_perspective=persp,
+                    evidence_tier=evidence_tier,
+                    is_explicit_absence=is_absence_noted,
+                    matched_page=page
+                )
+            )
+
+        total_pts = len(results)
+        coverage_pct = round((covered_count / total_pts * 100), 1) if total_pts > 0 else 0.0
+
+        # Section-level breakdown
+        sections_summary: Dict[str, Dict[str, int]] = {}
+        for r in results:
+            sec = r.section_name
+            if sec not in sections_summary:
+                sections_summary[sec] = {"total": 0, "covered": 0, "partial": 0, "missing": 0}
+            sections_summary[sec]["total"] += 1
+            if r.status == "COVERED":
+                sections_summary[sec]["covered"] += 1
+            elif r.status == "PARTIAL":
+                sections_summary[sec]["partial"] += 1
+            else:
+                sections_summary[sec]["missing"] += 1
+
+        return TemplateComplianceReport(
+            template_title=template.title,
+            target_name=target_name,
+            target_page=target_page,
+            total_pages=total_pages,
+            covered_threshold=self.covered_threshold,
+            partial_threshold=self.partial_threshold,
+            min_evidence_threshold=self.min_evidence_threshold,
+            total_points=total_pts,
+            covered_count=covered_count,
+            partial_count=partial_count,
+            missing_count=missing_count,
+            coverage_percentage=coverage_pct,
+            results=results,
+            sections_summary=sections_summary
+        )
+
+
 class ReportGenerator:
     """Formats and exports compliance audit reports (Terminal, Markdown, JSON)."""
 
@@ -1094,5 +1530,170 @@ class ReportGenerator:
                     "checks": [asdict(c) for c in a.checks]
                 }
                 for a in report.audits
+            ]
+        }
+
+    @staticmethod
+    def format_template_terminal(report: TemplateComplianceReport) -> str:
+        """Formats TemplateComplianceReport into a clean, Windows-safe terminal string."""
+        lines = []
+        lines.append("=" * 76)
+        lines.append("       REFERENCE-TEMPLATE CONTENT COMPLIANCE REPORT (PHASE 1.1)")
+        lines.append("=" * 76)
+        lines.append(f"Reference Template : {report.template_title}")
+        lines.append(f"Target Document    : {report.target_name}")
+        if report.target_page is not None:
+            scope_str = f"Single Page (Page {report.target_page} of {report.total_pages})"
+        else:
+            scope_str = f"Entire Document ({report.total_pages} page(s))"
+        lines.append(f"Target Scope       : {scope_str}")
+        lines.append(f"Model Engine       : sentence-transformers (all-MiniLM-L6-v2)")
+        lines.append(f"Similarity Metric  : Cosine Similarity [-1.0, 1.0]")
+        lines.append(
+            f"Decision Boundary  : COVERED >= {report.covered_threshold:.2f} | "
+            f"PARTIAL >= {report.partial_threshold:.2f} | MIN_EVIDENCE >= {report.min_evidence_threshold:.2f}"
+        )
+        lines.append("-" * 76)
+        lines.append("EXECUTIVE SUMMARY:")
+        lines.append(f"  Total Template Points Required : {report.total_points}")
+        cov_pct = round(report.covered_count / report.total_points * 100, 1) if report.total_points else 0.0
+        part_pct = round(report.partial_count / report.total_points * 100, 1) if report.total_points else 0.0
+        miss_pct = round(report.missing_count / report.total_points * 100, 1) if report.total_points else 0.0
+        lines.append(f"  [COVERED]  Requirements Met    : {report.covered_count} ({cov_pct}%)")
+        lines.append(f"  [PARTIAL]  Ambiguous / Gap     : {report.partial_count} ({part_pct}%)")
+        lines.append(f"  [MISSING]  Not Found           : {report.missing_count} ({miss_pct}%)")
+        lines.append(f"  Overall Coverage Rate          : {report.coverage_percentage}%")
+        lines.append("-" * 76)
+
+        if report.sections_summary:
+            lines.append("SECTION BREAKDOWN:")
+            for sec_name, counts in report.sections_summary.items():
+                if isinstance(counts, dict) and "total" in counts:
+                    lines.append(
+                        f"  * {sec_name:<36} : {counts['covered']}/{counts['total']} covered "
+                        f"({counts['partial']} partial, {counts['missing']} missing)"
+                    )
+            lines.append("-" * 76)
+
+        lines.append("POINT-BY-POINT COMPLIANCE FINDINGS:")
+        lines.append("-" * 76)
+        for idx, res in enumerate(report.results, start=1):
+            if res.is_explicit_absence and res.status == "MISSING":
+                badge = "[MISSING (Explicit Absence)]"
+            else:
+                badge = f"[{res.status}]"
+            page_info = f" (Page {res.matched_page})" if res.matched_page else ""
+            lines.append(f"{idx}. {badge} {res.point_id} (Section: {res.section_name})")
+            lines.append(f"   Required : \"{res.reference_text}\"")
+            if res.is_explicit_absence and res.status == "MISSING":
+                lines.append(f"   Target Absence Statement{page_info} : \"{res.matched_text}\"")
+            elif res.matched_text:
+                lines.append(f"   Evidence [{res.evidence_tier}]{page_info} : \"{res.matched_text}\"")
+            else:
+                lines.append("   Evidence : None (no target statement met the minimum evidence threshold)")
+            lines.append(f"   Metric   : Cosine Similarity = {res.similarity_score:.4f} (via {res.winning_perspective or 'none'})")
+            lines.append(f"   Details  : {res.notes}")
+            lines.append("-" * 76)
+
+        lines.append("=" * 76)
+        return "\n".join(lines)
+
+    @staticmethod
+    def format_template_markdown(report: TemplateComplianceReport) -> str:
+        """Formats TemplateComplianceReport into a comprehensive Markdown document."""
+        md = []
+        md.append("# Reference-Template Content Compliance Report\n")
+        md.append("## 1. Executive Summary\n")
+        md.append(f"- **Reference Template**: `{report.template_title}`")
+        md.append(f"- **Target Document**: `{report.target_name}`")
+        if report.target_page is not None:
+            md.append(f"- **Target Scope**: Single Page (Page {report.target_page} of {report.total_pages})")
+        else:
+            md.append(f"- **Target Scope**: Entire Document ({report.total_pages} page(s))")
+        md.append(f"- **Overall Coverage Rate**: **{report.coverage_percentage}%**")
+        md.append(f"- **Covered Points**: {report.covered_count} / {report.total_points}")
+        md.append(f"- **Partial Points**: {report.partial_count} / {report.total_points}")
+        md.append(f"- **Missing Points**: {report.missing_count} / {report.total_points}")
+        md.append(
+            f"- **Thresholds**: COVERED >= {report.covered_threshold:.2f}, "
+            f"PARTIAL >= {report.partial_threshold:.2f}, MIN_EVIDENCE >= {report.min_evidence_threshold:.2f}\n"
+        )
+
+        if report.sections_summary:
+            md.append("## 2. Section Coverage Breakdown\n")
+            md.append("| Section Name | Total Required | Covered | Partial | Missing | Coverage % |")
+            md.append("| :--- | :---: | :---: | :---: | :---: | :---: |")
+            for sec_name, counts in report.sections_summary.items():
+                if isinstance(counts, dict) and "total" in counts:
+                    pct = round(counts['covered'] / counts['total'] * 100, 1) if counts['total'] else 0.0
+                    md.append(
+                        f"| **{sec_name}** | {counts['total']} | {counts['covered']} | "
+                        f"{counts['partial']} | {counts['missing']} | {pct}% |"
+                    )
+            md.append("")
+
+        md.append("## 3. Detailed Point Findings\n")
+        for idx, res in enumerate(report.results, start=1):
+            if res.is_explicit_absence and res.status == "MISSING":
+                status_icon = "MISSING (EXPLICIT ABSENCE)"
+            elif res.status == "COVERED":
+                status_icon = "PASS"
+            elif res.status == "PARTIAL":
+                status_icon = "PARTIAL"
+            else:
+                status_icon = "MISSING"
+
+            page_info = f" (Page {res.matched_page})" if res.matched_page else ""
+            md.append(f"### {idx}. [{status_icon}] {res.point_id} — Section: {res.section_name}\n")
+            md.append(f"**Required Statement:**\n> {res.reference_text}\n")
+            if res.is_explicit_absence and res.status == "MISSING":
+                md.append(f"**Target Absence Statement{page_info}:**\n> {res.matched_text}\n")
+            elif res.matched_text:
+                md.append(f"**Target Evidence [{res.evidence_tier}]{page_info}:**\n> {res.matched_text}\n")
+            else:
+                md.append("**Target Evidence:** *None found in target content.*\n")
+            md.append(f"- **Cosine Similarity**: `{res.similarity_score:.4f}` (via `{res.winning_perspective or 'none'}`)")
+            md.append(f"- **Analysis**: {res.notes}\n")
+
+        return "\n".join(md)
+
+    @staticmethod
+    def to_template_json(report: TemplateComplianceReport) -> Dict[str, Any]:
+        """Serializes TemplateComplianceReport to a structured dictionary."""
+        return {
+            "version": "1.1-phase1.1",
+            "metadata": {
+                "template_title": report.template_title,
+                "target_name": report.target_name,
+                "target_page": report.target_page,
+                "total_pages": report.total_pages,
+                "covered_threshold": report.covered_threshold,
+                "partial_threshold": report.partial_threshold,
+                "min_evidence_threshold": report.min_evidence_threshold,
+                "similarity_metric": "cosine_similarity"
+            },
+            "summary": {
+                "total_points": report.total_points,
+                "covered_count": report.covered_count,
+                "partial_count": report.partial_count,
+                "missing_count": report.missing_count,
+                "coverage_percentage": report.coverage_percentage,
+                "sections_summary": report.sections_summary
+            },
+            "results": [
+                {
+                    "point_id": r.point_id,
+                    "section_name": r.section_name,
+                    "reference_text": r.reference_text,
+                    "status": r.status,
+                    "similarity_score": r.similarity_score,
+                    "matched_text": r.matched_text,
+                    "notes": r.notes,
+                    "winning_perspective": r.winning_perspective,
+                    "evidence_tier": r.evidence_tier,
+                    "is_explicit_absence": r.is_explicit_absence,
+                    "matched_page": r.matched_page
+                }
+                for r in report.results
             ]
         }
