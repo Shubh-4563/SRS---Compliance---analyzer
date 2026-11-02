@@ -9,6 +9,11 @@ from src.models.requirement import (
     DecomposedReferenceTemplate,
 )
 from src.models.retrieval import CandidateEvidence
+from src.models.verification import (
+    VerificationStatus,
+    EvidenceEvaluation,
+    SubRequirementVerificationResult,
+)
 
 __all__ = [
     "BlockType",
@@ -19,4 +24,7 @@ __all__ = [
     "DecomposedTemplatePoint",
     "DecomposedReferenceTemplate",
     "CandidateEvidence",
+    "VerificationStatus",
+    "EvidenceEvaluation",
+    "SubRequirementVerificationResult",
 ]
