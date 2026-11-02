@@ -64,6 +64,7 @@ class SubRequirementVerificationResult:
     expected_evidence_type: EvidenceType
     status: VerificationStatus
     confidence: float                          # Confidence of the decision (0.0 to 1.0)
+    is_mandatory: bool = True                  # Inherited from sub-requirement
     best_evidence: Optional[EvidenceEvaluation] = None
     all_evaluations: List[EvidenceEvaluation] = field(default_factory=list)
     rationale: str = ""
@@ -81,6 +82,7 @@ class SubRequirementVerificationResult:
             "expected_evidence_type": self.expected_evidence_type.value,
             "status": self.status.value,
             "confidence": round(self.confidence, 4),
+            "is_mandatory": self.is_mandatory,
             "needs_review": self.needs_review,
             "rationale": self.rationale,
             "source_page": self.source_page,

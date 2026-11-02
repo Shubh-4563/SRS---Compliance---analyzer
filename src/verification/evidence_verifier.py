@@ -92,6 +92,7 @@ class EvidenceVerifier:
                 expected_evidence_type=sub_req.expected_evidence_type,
                 status=VerificationStatus.MISSING,
                 confidence=1.0,
+                is_mandatory=sub_req.is_mandatory,
                 rationale="No candidate evidence blocks were retrieved from the target document.",
                 source_page=sub_req.source_page,
                 section_name=sub_req.section_name,
@@ -137,6 +138,7 @@ class EvidenceVerifier:
                         expected_evidence_type=sub_req.expected_evidence_type,
                         status=VerificationStatus.EXPLICIT_OMISSION,
                         confidence=best_om.contradiction_prob,
+                        is_mandatory=sub_req.is_mandatory,
                         best_evidence=best_om,
                         all_evaluations=evaluations,
                         rationale=f"Target document explicitly disclaims or omits this requirement in block {best_om.candidate.block_id}.",
@@ -154,6 +156,7 @@ class EvidenceVerifier:
                         expected_evidence_type=sub_req.expected_evidence_type,
                         status=VerificationStatus.NEEDS_REVIEW,
                         confidence=min(best_positive.entailment_prob, best_om.contradiction_prob),
+                        is_mandatory=sub_req.is_mandatory,
                         best_evidence=best_positive,
                         all_evaluations=evaluations,
                         rationale=(
@@ -186,6 +189,7 @@ class EvidenceVerifier:
                     expected_evidence_type=sub_req.expected_evidence_type,
                     status=VerificationStatus.NEEDS_REVIEW,
                     confidence=min(best_positive.entailment_prob, worst_contra.contradiction_prob),
+                    is_mandatory=sub_req.is_mandatory,
                     best_evidence=best_positive,
                     all_evaluations=evaluations,
                     rationale=(
@@ -219,6 +223,7 @@ class EvidenceVerifier:
                 expected_evidence_type=sub_req.expected_evidence_type,
                 status=VerificationStatus.FULFILLED,
                 confidence=best_positive.entailment_prob,
+                is_mandatory=sub_req.is_mandatory,
                 best_evidence=best_positive,
                 all_evaluations=evaluations,
                 rationale=rationale_text,
@@ -243,6 +248,7 @@ class EvidenceVerifier:
                     expected_evidence_type=sub_req.expected_evidence_type,
                     status=VerificationStatus.NEEDS_REVIEW,
                     confidence=best_qual.entailment_prob,
+                    is_mandatory=sub_req.is_mandatory,
                     best_evidence=best_qual,
                     all_evaluations=evaluations,
                     rationale=(
@@ -271,6 +277,7 @@ class EvidenceVerifier:
                 expected_evidence_type=sub_req.expected_evidence_type,
                 status=VerificationStatus.CONTRADICTED,
                 confidence=worst_contra.contradiction_prob,
+                is_mandatory=sub_req.is_mandatory,
                 best_evidence=worst_contra,
                 all_evaluations=evaluations,
                 rationale=f"Retrieved evidence in block {worst_contra.candidate.block_id} directly contradicts requirement claim on same topic.",
@@ -290,6 +297,7 @@ class EvidenceVerifier:
             expected_evidence_type=sub_req.expected_evidence_type,
             status=VerificationStatus.MISSING,
             confidence=avg_neutral,
+            is_mandatory=sub_req.is_mandatory,
             best_evidence=best_cand,
             all_evaluations=evaluations,
             rationale=(

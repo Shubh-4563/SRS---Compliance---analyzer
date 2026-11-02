@@ -14,6 +14,12 @@ from src.models.verification import (
     EvidenceEvaluation,
     SubRequirementVerificationResult,
 )
+from src.models.compliance import (
+    ParentComplianceStatus,
+    DocumentComplianceVerdict,
+    ParentPointCompliance,
+    DocumentComplianceReport,
+)
 
 __all__ = [
     "BlockType",
@@ -27,4 +33,8 @@ __all__ = [
     "VerificationStatus",
     "EvidenceEvaluation",
     "SubRequirementVerificationResult",
+    "ParentComplianceStatus",
+    "DocumentComplianceVerdict",
+    "ParentPointCompliance",
+    "DocumentComplianceReport",
 ]
