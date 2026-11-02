@@ -8,6 +8,7 @@ from src.models.requirement import (
     DecomposedTemplatePoint,
     DecomposedReferenceTemplate,
 )
+from src.models.retrieval import CandidateEvidence
 
 __all__ = [
     "BlockType",
@@ -17,4 +18,5 @@ __all__ = [
     "SubRequirement",
     "DecomposedTemplatePoint",
     "DecomposedReferenceTemplate",
+    "CandidateEvidence",
 ]

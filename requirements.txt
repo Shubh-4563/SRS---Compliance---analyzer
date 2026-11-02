@@ -7,6 +7,7 @@
 # --- Core analysis & NLP ---
 sentence-transformers>=3.0.0   # Semantic embeddings (all-MiniLM-L6-v2)
 torch>=2.0.0                   # Backend for sentence-transformers
+rank-bm25>=0.2.2               # BM25 lexical retrieval (pure Python)
 
 # --- PDF processing ---
 pypdf>=4.0.0                   # Digital PDF text extraction (Version 0.4)
