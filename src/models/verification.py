@@ -36,17 +36,23 @@ class EvidenceEvaluation:
     numeric_tokens: List[str] = field(default_factory=list) # Extracted numeric tokens
 
     def to_dict(self) -> Dict[str, Any]:
+        cand = self.candidate
         return {
-            "block_id": self.candidate.block_id,
-            "page_number": self.candidate.page_number,
-            "section_heading": self.candidate.section_heading,
+            "block_id": cand.block_id,
+            "page_number": cand.page_number,
+            "section_heading": cand.section_heading,
+            "block_type": cand.block_type.value if hasattr(cand.block_type, "value") else str(cand.block_type),
             "predicted_label": self.predicted_label,
             "entailment_prob": round(self.entailment_prob, 4),
             "contradiction_prob": round(self.contradiction_prob, 4),
             "neutral_prob": round(self.neutral_prob, 4),
-            "is_explicit_omission": self.candidate.is_explicit_omission,
+            "is_explicit_omission": cand.is_explicit_omission,
             "has_numeric_content": self.has_numeric_content,
             "numeric_tokens": self.numeric_tokens,
+            "rrf_rank": cand.rrf_rank,
+            "rrf_score": cand.rrf_score,
+            "bm25_score": cand.bm25_score,
+            "dense_score": cand.dense_score,
             "evidence_text": self.premise_text,
             "hypothesis_text": self.hypothesis_text,
         }

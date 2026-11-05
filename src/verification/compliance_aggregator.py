@@ -36,6 +36,7 @@ class ComplianceAggregator:
         target_document_path: str = "",
         target_document_name: str = "",
         total_pages: Optional[int] = None,
+        target_page: Optional[int] = None,
     ) -> DocumentComplianceReport:
         """
         Aggregates verification results against a decomposed reference template.
@@ -167,6 +168,7 @@ class ComplianceAggregator:
             template_title=template.title,
             template_path=template.source_path,
             total_pages=total_pages,
+            target_page=target_page,
             total_parent_points=len(template.points),
             total_sub_requirements=len(all_resolved_results),
             parent_points=parent_compliances,

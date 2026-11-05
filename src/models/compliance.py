@@ -105,6 +105,7 @@ class DocumentComplianceReport:
     summary: str = ""
     items_requiring_review: List[SubRequirementVerificationResult] = field(default_factory=list)
     total_pages: Optional[int] = None
+    target_page: Optional[int] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -113,6 +114,7 @@ class DocumentComplianceReport:
             "template_title": self.template_title,
             "template_path": self.template_path,
             "total_pages": self.total_pages,
+            "target_page": self.target_page,
             "total_parent_points": self.total_parent_points,
             "total_sub_requirements": self.total_sub_requirements,
             "mandatory_coverage_pct": (

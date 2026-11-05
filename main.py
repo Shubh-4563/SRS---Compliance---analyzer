@@ -1,24 +1,40 @@
 #!/usr/bin/env python3
 """
-SRS Compliance Analyzer - Phase 1 Reference Template Content Checker
-=====================================================================
-CLI entry point to verify target documents (entire PDF or single page via --page N,
-TXT, or MD) against a reference template PDF.
-Compares required sections and points using dense semantic embeddings
-(sentence-transformers / all-MiniLM-L6-v2) and configurable cosine similarity thresholds.
-Classifies each required point as COVERED, PARTIAL, or MISSING and displays closest evidence.
+AI-SRS Compliance Analyzer
+===========================
+CLI entry point to verify target documents (entire PDF or single page via --page N)
+against a reference template PDF.
+
+Default Engine (V2):
+- Candidate Retrieval: Dual-Engine Hybrid RRF (BM25 lexical + MiniLM dense embeddings).
+- Evidence Verification: NLI cross-encoder (cross-encoder/nli-deberta-v3-small) with
+  explicit omission isolation, numerical token validation, and conflict detection.
+- Compliance Aggregation: Deterministic rollup of atomic verification results to
+  parent points and document-level verdicts.
+- Audit Reporting: Export to structured JSON and clean, table-free Markdown reports.
+
+Legacy Engine (V1):
+- Selectable via --legacy-rules for v0.1-v0.4 quality rules (R1-R4) and cosine similarity checks.
 """
 
 import os
 import sys
 import json
 import argparse
+from pathlib import Path
+from typing import Optional, List
 
 # Add project root to sys.path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
+# V2 Pipeline & Reporting imports
+from src.pipeline import CompliancePipeline
+from src.reporting.report_formatter import ComplianceReportFormatter
+from src.models.compliance import DocumentComplianceReport
+
+# V1 Legacy imports
 from src.analyzer import (
     ReferenceStandard,
     RequirementExtractor,
@@ -33,6 +49,104 @@ from src.pdf_extractor import (
     ScannedPDFError,
     PDFExtractor,
 )
+
+
+def run_v2_pipeline(
+    template_path: str,
+    target_path: str,
+    page: Optional[int] = None,
+    top_k: int = 5,
+    output_json: Optional[str] = "compliance_report.json",
+    output_md: Optional[str] = "compliance_report.md",
+    pipeline: Optional[CompliancePipeline] = None,
+    formatter: Optional[ComplianceReportFormatter] = None,
+    debug: bool = False,
+) -> int:
+    """
+    Executes Phase 2.5 V2 Reference-Guided Compliance Verification Pipeline:
+    1. Validates reference and target document inputs.
+    2. Decomposes reference template into atomic verifiable sub-requirements.
+    3. Indexes target document into hybrid retrieval engine (BM25 + Dense + RRF).
+    4. Evaluates evidence with NLI cross-encoder verifier (DeBERTa-v3).
+    5. Aggregates findings into hierarchical compliance report.
+    6. Exports structured JSON and Markdown audit reports (no tables) and displays terminal summary.
+    """
+    print("=" * 80)
+    print("      AI-SRS COMPLIANCE ANALYZER — V2 REFERENCE-GUIDED VERIFICATION")
+    print("=" * 80)
+    print(f"Reference Template : {template_path}")
+    print(f"Target Document    : {target_path}")
+    if page is not None:
+        print(f"Target Scope       : Single Page (Page {page})")
+    else:
+        print("Target Scope       : Entire Document")
+    print("Retrieval Engine   : Hybrid RRF (BM25 Lexical + MiniLM Dense)")
+    print("Verification Engine: NLI Cross-Encoder (cross-encoder/nli-deberta-v3-small)")
+    print(f"Top-K Evidence     : {top_k} candidate block(s) per requirement")
+    print("-" * 80)
+
+    formatter = formatter or ComplianceReportFormatter()
+
+    try:
+        pipeline = pipeline or CompliancePipeline()
+        report = pipeline.run(
+            reference_path=template_path,
+            target_path=target_path,
+            target_page=page,
+            top_k=top_k,
+        )
+    except FileNotFoundError as err:
+        print(f"\n[Error] File not found: {err}", file=sys.stderr)
+        return 1
+    except ScannedPDFError as err:
+        print("\n" + "=" * 80, file=sys.stderr)
+        print("  [ALERT] SCANNED / IMAGE-ONLY PDF DETECTED", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+        print(f"File    : {err.filepath}", file=sys.stderr)
+        print(f"Details : {err.char_count} character(s) across {err.page_count} page(s).", file=sys.stderr)
+        print("Action  : OCR is required. Please provide a digital text-based PDF.", file=sys.stderr)
+        print("=" * 80 + "\n", file=sys.stderr)
+        return 2
+    except ValueError as err:
+        print(f"\n[Error] Invalid input or document: {err}", file=sys.stderr)
+        return 1
+    except Exception as err:
+        if debug:
+            raise
+        print(f"\n[Error] Compliance audit pipeline failed: {err}", file=sys.stderr)
+        return 1
+
+    # Export reports if paths specified
+    saved_json_path = None
+    saved_md_path = None
+
+    if output_json:
+        try:
+            target_json = Path(output_json)
+            if not target_json.is_absolute():
+                target_json = Path.cwd() / target_json
+            saved_json_path = str(formatter.export_json(report, target_json))
+        except Exception as err:
+            print(f"[Warning] Failed to export JSON report to '{output_json}': {err}", file=sys.stderr)
+
+    if output_md:
+        try:
+            target_md = Path(output_md)
+            if not target_md.is_absolute():
+                target_md = Path.cwd() / target_md
+            saved_md_path = str(formatter.export_markdown(report, target_md))
+        except Exception as err:
+            print(f"[Warning] Failed to export Markdown report to '{output_md}': {err}", file=sys.stderr)
+
+    # Print terminal summary
+    terminal_output = formatter.to_terminal(
+        report,
+        json_path=saved_json_path,
+        md_path=saved_md_path,
+    )
+    print(terminal_output)
+
+    return 0
 
 
 def run_template_pipeline(
@@ -84,7 +198,6 @@ def run_template_pipeline(
         if template_path.lower().endswith(".pdf"):
             template = pdf_extractor.extract_template(template_path)
         else:
-            # Load JSON standard and adapt to ReferenceTemplate
             std = ReferenceStandard(template_path)
             points = []
             for s in std.sections:
@@ -244,7 +357,7 @@ def run_demonstration(mode: str = "pdf"):
     Runs interactive demonstrations of AI compliance and PDF capabilities:
     - 'pdf': Version 0.4 PDF input support, PDF-to-PDF analysis, and scanned detection
     - 'rules': Version 0.3 semantic matching of rules against requirements
-    - 'sections': Version 0.2 semantic matching of document sections
+    - 'sections': Version 0.2 section alignment demonstration
     - 'all': Runs all demonstrations sequentially
     """
     if mode in ("pdf", "all"):
@@ -263,9 +376,10 @@ def run_demonstration(mode: str = "pdf"):
         run_section_demo()
 
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
+    """Builds and returns the argument parser for the CLI."""
     parser = argparse.ArgumentParser(
-        description="Verify a target document (PDF, TXT, MD) against a reference template PDF using semantic sentence embeddings."
+        description="Verify a target document (PDF) against a reference template PDF using V2 Hybrid Retrieval and NLI Evidence Verification."
     )
     default_template = os.path.join(BASE_DIR, "data", "reference_standard.pdf")
     default_target = os.path.join(BASE_DIR, "data", "sample_srs.pdf")
@@ -289,27 +403,25 @@ def main():
         help="Specific page number (1-based index) of target PDF to check. Default: all pages."
     )
     parser.add_argument(
-        "--covered-threshold",
-        type=float,
-        default=0.70,
-        help="Cosine similarity threshold for COVERED classification (default: 0.70)"
+        "--top-k",
+        type=int,
+        default=5,
+        help="Number of candidate evidence blocks to retrieve per requirement in V2 pipeline (default: 5)"
     )
     parser.add_argument(
-        "--partial-threshold",
-        type=float,
-        default=0.50,
-        help="Cosine similarity threshold for PARTIAL classification (default: 0.50)"
+        "--output-json", "-j",
+        default="compliance_report.json",
+        help="Filename or path for exported JSON audit report (default: compliance_report.json)"
     )
     parser.add_argument(
-        "--min-evidence-threshold",
-        type=float,
-        default=0.38,
-        help="Minimum cosine similarity threshold to present candidate text as evidence (default: 0.38)"
+        "--output-md", "-m",
+        default="compliance_report.md",
+        help="Filename or path for exported Markdown audit report (default: compliance_report.md)"
     )
     parser.add_argument(
         "--legacy-rules",
         action="store_true",
-        help="Run legacy v0.1-v0.4 quality rules audit (R1-R4) instead of template content checker"
+        help="Run legacy v0.1-v0.4 quality rules audit (R1-R4) instead of V2 pipeline"
     )
     parser.add_argument(
         "--threshold", "-t",
@@ -318,14 +430,27 @@ def main():
         help="Cosine similarity threshold for legacy section matching (default: 0.55)"
     )
     parser.add_argument(
-        "--output-json", "-j",
-        default="compliance_report.json",
-        help="Filename for exported JSON audit report (default: compliance_report.json)"
+        "--covered-threshold",
+        type=float,
+        default=0.70,
+        help="Cosine similarity threshold for legacy COVERED classification (default: 0.70)"
     )
     parser.add_argument(
-        "--output-md", "-m",
-        default="compliance_report.md",
-        help="Filename for exported Markdown audit report (default: compliance_report.md)"
+        "--partial-threshold",
+        type=float,
+        default=0.50,
+        help="Cosine similarity threshold for legacy PARTIAL classification (default: 0.50)"
+    )
+    parser.add_argument(
+        "--min-evidence-threshold",
+        type=float,
+        default=0.38,
+        help="Minimum cosine similarity threshold for legacy evidence selection (default: 0.38)"
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Display full traceback on unhandled pipeline exceptions"
     )
     parser.add_argument(
         "--demo", "-d",
@@ -347,21 +472,25 @@ def main():
         action="store_true",
         help="Run all demonstrations (PDF support + rule matching + section alignment)"
     )
+    return parser
 
-    args = parser.parse_args()
+
+def main(args_list: Optional[List[str]] = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(args_list)
 
     if args.demo_all:
         run_demonstration(mode="all")
-        return
+        return 0
     elif args.demo_sections:
         run_demonstration(mode="sections")
-        return
+        return 0
     elif args.demo_rules:
         run_demonstration(mode="rules")
-        return
+        return 0
     elif args.demo:
         run_demonstration(mode="pdf")
-        return
+        return 0
 
     if args.legacy_rules:
         run_legacy_pipeline(
@@ -369,23 +498,21 @@ def main():
             standard_path=args.template,
             output_json=args.output_json,
             output_md=args.output_md,
-            threshold=args.threshold
+            threshold=args.threshold,
         )
+        return 0
     else:
-        run_template_pipeline(
+        exit_code = run_v2_pipeline(
             template_path=args.template,
             target_path=args.target,
             page=args.page,
-            covered_threshold=args.covered_threshold,
-            partial_threshold=args.partial_threshold,
-            min_evidence_threshold=args.min_evidence_threshold,
+            top_k=args.top_k,
             output_json=args.output_json,
-            output_md=args.output_md
+            output_md=args.output_md,
+            debug=args.debug,
         )
+        return exit_code
 
 
 if __name__ == "__main__":
-    main()
-
-
-
+    sys.exit(main())
