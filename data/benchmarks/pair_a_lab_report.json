@@ -1,0 +1,344 @@
+{
+  "schema_version": "2.0.0",
+  "metadata": {
+    "pair_id": "PAIR_A",
+    "domain": "Laboratory Science",
+    "title": "Laboratory Report Compliance Benchmark (Pair A)",
+    "description": "Benchmark evaluating laboratory cooling experiment report against standard lab report template requirements.",
+    "reference_document": {
+      "path": "data/test_packs/A_reference_lab_report_template.pdf",
+      "filename": "A_reference_lab_report_template.pdf",
+      "sha256": "b8256074931289363371bd6f4b5948015a7df5784217f2c066167b0dbfa7de42"
+    },
+    "target_document": {
+      "path": "data/test_packs/A_target_lab_report.pdf",
+      "filename": "A_target_lab_report.pdf",
+      "sha256": "c8dfb2b85907c5ebba2c7c915621a0d988cc81314effd43143c2cf7b276dee50",
+      "total_pages": 1
+    },
+    "tags": [
+      "laboratory",
+      "experiment",
+      "thermal-physics",
+      "starter-pack"
+    ]
+  },
+  "parent_requirements": [
+    {
+      "parent_id": "A1",
+      "section_name": "1. Aim",
+      "topic_label": "Aim",
+      "description": "State the purpose of the experiment and what the experiment is intended to demonstrate or measure.",
+      "is_mandatory": true,
+      "expected_compliance_status": "FULLY_COMPLIANT",
+      "sub_requirements": [
+        {
+          "sub_id": "A1.1",
+          "claim_text": "The document states the purpose or aim of the experiment.",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Core experimental purpose statement.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b3",
+                  "page": 1,
+                  "excerpt": "The aim was to observe how the temperature of warm water changes as it cools in a room."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target report explicitly outlines the experimental aim in section 1."
+            }
+          }
+        },
+        {
+          "sub_id": "A1.2",
+          "claim_text": "The document describes what the experiment is intended to demonstrate or measure.",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Specific measurement or demonstration goal.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b7",
+                  "page": 1,
+                  "excerpt": "Its temperature was read at the start and then every two minutes for ten minutes."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target report describes cooling temperature measurement across 10 minutes in section 3."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "parent_id": "A2",
+      "section_name": "2. Materials and Setup",
+      "topic_label": "Materials",
+      "description": "List the equipment, instruments, software, and materials needed to reproduce the experiment.",
+      "is_mandatory": true,
+      "expected_compliance_status": "FULLY_COMPLIANT",
+      "sub_requirements": [
+        {
+          "sub_id": "A2.1",
+          "claim_text": "The document lists the equipment, instruments, or apparatus used in the experiment.",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Physical apparatus and instruments (e.g. beaker, thermometer, stopwatch).",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b5",
+                  "page": 1,
+                  "excerpt": "A beaker, warm water, a thermometer, a stopwatch, and a notebook were used."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target report lists beaker, thermometer, stopwatch, and notebook."
+            }
+          }
+        },
+        {
+          "sub_id": "A2.2",
+          "claim_text": "The document lists the materials, reagents, or software used in the experiment.",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Materials and consumables (e.g. warm water, notebook).",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b5",
+                  "page": 1,
+                  "excerpt": "A beaker, warm water, a thermometer, a stopwatch, and a notebook were used."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target report lists warm water and notebook consumables."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "parent_id": "A3",
+      "section_name": "3. Procedure",
+      "topic_label": "Procedure",
+      "description": "Provide ordered steps that another person can follow to repeat the work under the same conditions.",
+      "is_mandatory": true,
+      "expected_compliance_status": "FULLY_COMPLIANT",
+      "sub_requirements": [
+        {
+          "sub_id": "A3.1",
+          "claim_text": "The document provides ordered procedural steps to perform or repeat the experiment.",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Sequential execution steps (pouring, measuring, timing).",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b7",
+                  "page": 1,
+                  "excerpt": "Warm water was poured into the beaker. Its temperature was read at the start and then every two minutes for ten minutes."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target report describes pouring water and reading thermometer at 2-minute intervals."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "parent_id": "A4",
+      "section_name": "4. Observations and Analysis",
+      "topic_label": "Observations",
+      "description": "Record the measured values, observations, tables, or other data collected during the experiment.",
+      "is_mandatory": true,
+      "expected_compliance_status": "FULLY_COMPLIANT",
+      "sub_requirements": [
+        {
+          "sub_id": "A4.1",
+          "claim_text": "The document records measured numerical values, data points, or observations collected during the experiment.",
+          "expected_evidence_type": "NUMERIC_TARGET",
+          "is_mandatory": true,
+          "decomposition_rationale": "Quantitative experimental data and recorded temperature values.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b9",
+                  "page": 1,
+                  "excerpt": "The recorded temperatures were: start 70 degrees C; 2 minutes 61 degrees C; 4 minutes 54 degrees C; 6 minutes 48 degrees C; 8 minutes 44 degrees C; 10 minutes 41 degrees C."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target report records temperatures from 70 C down to 41 C across 10 minutes."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "parent_id": "A5",
+      "section_name": "5. Analysis",
+      "topic_label": "Analysis",
+      "description": "Explain what the observations mean and compare the results with expected behavior or theory.",
+      "is_mandatory": true,
+      "expected_compliance_status": "FULLY_COMPLIANT",
+      "sub_requirements": [
+        {
+          "sub_id": "A5.1",
+          "claim_text": "The document explains what the observations mean or discusses trends in the data.",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Interpretation of data trends over time.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b11",
+                  "page": 1,
+                  "excerpt": "The water temperature decreased over time. The decrease became smaller toward the end of the observation period, which is consistent with cooling toward room temperature."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target report explains temperature decrease over observation period."
+            }
+          }
+        },
+        {
+          "sub_id": "A5.2",
+          "claim_text": "The document compares the observed results with expected behavior, theory, or room temperature cooling.",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Theoretical comparison or explanation of cooling behavior.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b11",
+                  "page": 1,
+                  "excerpt": "consistent with cooling toward room temperature."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target report compares observed cooling rate with expected room temperature behavior."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "parent_id": "A6",
+      "section_name": "6. Result and Safety",
+      "topic_label": "Result",
+      "description": "State the outcome and whether the aim was achieved, supported by the evidence.",
+      "is_mandatory": true,
+      "expected_compliance_status": "FULLY_COMPLIANT",
+      "sub_requirements": [
+        {
+          "sub_id": "A6.1",
+          "claim_text": "The document states the final outcome of the experiment and whether the aim was achieved.",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Final conclusion and outcome assertion.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b13",
+                  "page": 1,
+                  "excerpt": "The water cooled during the ten-minute observation, so the experiment demonstrated a decrease in water temperature over time."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target report concludes that water cooled during the ten-minute observation."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "parent_id": "A7",
+      "section_name": "7. Safety",
+      "topic_label": "Safety",
+      "description": "Identify relevant risks and precautions taken while carrying out the experiment.",
+      "is_mandatory": true,
+      "expected_compliance_status": "NON_COMPLIANT",
+      "sub_requirements": [
+        {
+          "sub_id": "A7.1",
+          "claim_text": "The document identifies laboratory hazards, safety risks, or precautions taken during the experiment.",
+          "expected_evidence_type": "SAFETY_CONSTRAINT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Experimental safety risks and mitigation procedures.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXPLICIT_OMISSION",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b14",
+                  "page": 1,
+                  "excerpt": "No specific hazards or safety precautions are discussed in this report."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "EXPLICIT_OMISSION",
+              "expected_rationale_notes": "Target report contains explicit disclaimer that no hazards or safety precautions are discussed."
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "expected_document_compliance": {
+    "mandatory_total": 10,
+    "mandatory_fulfilled": 9,
+    "mandatory_coverage_pct": 90.0,
+    "optional_total": 0,
+    "optional_fulfilled": 0,
+    "optional_coverage_pct": null,
+    "expected_status_counts": {
+      "FULFILLED": 9,
+      "EXPLICIT_OMISSION": 1,
+      "CONTRADICTED": 0,
+      "MISSING": 0,
+      "NEEDS_REVIEW": 0
+    },
+    "verdict": "NON_COMPLIANT"
+  }
+}

@@ -557,8 +557,7 @@ def load_and_validate_manifest(
 
     # Layer C: Document Integrity Validation
     if check_document_integrity:
-        effective_base_dir = base_dir if base_dir is not None else manifest_path.parent
-        validate_document_integrity(manifest, base_dir=effective_base_dir)
+        validate_document_integrity(manifest, base_dir=base_dir)
 
     return manifest
 

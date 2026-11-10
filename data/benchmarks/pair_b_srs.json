@@ -1,0 +1,390 @@
+{
+  "schema_version": "2.0.0",
+  "metadata": {
+    "pair_id": "PAIR_B",
+    "domain": "Software Engineering",
+    "title": "Technical Specification Compliance Benchmark (Pair B)",
+    "description": "Benchmark evaluating technical specification for equipment monitoring dashboard against general technical standard.",
+    "reference_document": {
+      "path": "data/test_packs/B_reference_technical_template.pdf",
+      "filename": "B_reference_technical_template.pdf",
+      "sha256": "ccc31d0a29876c8d1acfa32bc09b46bef269e99099a04199f0f1f013886df82c"
+    },
+    "target_document": {
+      "path": "data/test_packs/B_target_technical_document.pdf",
+      "filename": "B_target_technical_document.pdf",
+      "sha256": "dd6ad42a157373168d67fad952cc68eaea604a3ab2a0ef5415dd7fa23283ec71",
+      "total_pages": 1
+    },
+    "tags": [
+      "srs",
+      "software-engineering",
+      "dashboard",
+      "starter-pack"
+    ]
+  },
+  "parent_requirements": [
+    {
+      "parent_id": "B1",
+      "section_name": "1. Purpose and Intended Use",
+      "topic_label": "Purpose",
+      "description": "Explain what the system or product is intended to do and the problem it is meant to solve for its users.",
+      "is_mandatory": true,
+      "expected_compliance_status": "FULLY_COMPLIANT",
+      "sub_requirements": [
+        {
+          "sub_id": "B1.1",
+          "claim_text": "The document explains what the system, product, or dashboard is intended to do.",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "System intended capability and operational role.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b3",
+                  "page": 1,
+                  "excerpt": "The dashboard helps maintenance staff monitor equipment condition and identify developing problems before they interrupt daily operations."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target technical overview explicitly states that the dashboard helps maintenance staff monitor equipment condition."
+            }
+          }
+        },
+        {
+          "sub_id": "B1.2",
+          "claim_text": "The document explains the problem the system solves or its operational purpose for users.",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Problem solved (e.g. identifying equipment problems before failure).",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b3",
+                  "page": 1,
+                  "excerpt": "identify developing problems before they interrupt daily operations."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target document explicitly explains that the system identifies developing problems before they interrupt daily operations."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "parent_id": "B2",
+      "section_name": "2. Scope and boundaries",
+      "topic_label": "Scope and boundaries",
+      "description": "State what is included in the system, what is outside its scope, and any important operating boundaries or limits.",
+      "is_mandatory": true,
+      "expected_compliance_status": "FULLY_COMPLIANT",
+      "sub_requirements": [
+        {
+          "sub_id": "B2.1",
+          "claim_text": "The document states what is included in the system or identifies its main components.",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "System inclusion and component scope.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b5",
+                  "page": 1,
+                  "excerpt": "The application collects readings from connected sensors, displays current status, and stores historical measurements so staff can review changes over time."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target document lists key system capabilities: sensor collection, current status display, and historical data storage."
+            }
+          }
+        },
+        {
+          "sub_id": "B2.2",
+          "claim_text": "The document states what is outside system scope or boundaries (e.g. not controlling physical operation).",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Explicit scope exclusion and boundary demarcation.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b3",
+                  "page": 1,
+                  "excerpt": "does not control the equipment's physical operation."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target overview explicitly excludes physical control of the equipment from system scope."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "parent_id": "B3",
+      "section_name": "3. Functions and Interfaces",
+      "topic_label": "Core functions",
+      "description": "Describe the main actions the system performs and the expected interactions between functions.",
+      "is_mandatory": true,
+      "expected_compliance_status": "FULLY_COMPLIANT",
+      "sub_requirements": [
+        {
+          "sub_id": "B3.1",
+          "claim_text": "The document describes the main functional actions the application or system performs.",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Primary actions (collecting readings, storing history, displaying status).",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b5",
+                  "page": 1,
+                  "excerpt": "The application collects readings from connected sensors, displays current status, and stores historical measurements"
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target capabilities section enumerates core functional actions performed by the application."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "parent_id": "B4",
+      "section_name": "4. Interfaces",
+      "topic_label": "Interfaces",
+      "description": "Identify the users, external systems, hardware, or communication channels that exchange data with the system.",
+      "is_mandatory": true,
+      "expected_compliance_status": "FULLY_COMPLIANT",
+      "sub_requirements": [
+        {
+          "sub_id": "B4.1",
+          "claim_text": "The document identifies system users, user interfaces, or client applications (e.g. operators using a web browser).",
+          "expected_evidence_type": "INTERFACE_SPECIFICATION",
+          "is_mandatory": true,
+          "decomposition_rationale": "User roles and interaction interfaces.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b7",
+                  "page": 1,
+                  "excerpt": "Operators use a web browser to view the dashboard."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target connections section specifies operators accessing the dashboard through a web browser."
+            }
+          }
+        },
+        {
+          "sub_id": "B4.2",
+          "claim_text": "The document identifies external systems, hardware, or gateways that connect to the system.",
+          "expected_evidence_type": "INTERFACE_SPECIFICATION",
+          "is_mandatory": true,
+          "decomposition_rationale": "External gateway and hardware connection identification.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b7",
+                  "page": 1,
+                  "excerpt": "Sensor readings arrive from a gateway connected to the equipment."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target connections section specifies sensor readings arriving via equipment gateway."
+            }
+          }
+        },
+        {
+          "sub_id": "B4.3",
+          "claim_text": "The document specifies communication protocols or technical interface details for data exchange.",
+          "expected_evidence_type": "INTERFACE_SPECIFICATION",
+          "is_mandatory": false,
+          "decomposition_rationale": "Specific communication protocol and interface definitions.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXPLICIT_OMISSION",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b8",
+                  "page": 1,
+                  "excerpt": "The document does not specify the communication protocol or list the full set of external software interfaces."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "EXPLICIT_OMISSION",
+              "expected_rationale_notes": "Target explicitly disclaims communication protocol specification and external software interface list."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "parent_id": "B5",
+      "section_name": "5. Safety and Failure Handling",
+      "topic_label": "Safety",
+      "description": "Explain important hazards or failure conditions and describe how the system responds to keep people or assets safe.",
+      "is_mandatory": true,
+      "expected_compliance_status": "NEEDS_REVIEW",
+      "sub_requirements": [
+        {
+          "sub_id": "B5.1",
+          "claim_text": "The document describes hazards, faults, or failure conditions and how the system detects or warns of them.",
+          "expected_evidence_type": "SAFETY_CONSTRAINT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Fault detection and warning behavior (e.g. sensor loss warning).",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b10",
+                  "page": 1,
+                  "excerpt": "If a sensor stops sending readings, the dashboard displays a warning and marks that sensor's status as unavailable."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "NEEDS_REVIEW",
+              "expected_rationale_notes": "Partial evidence conflict: block p1_b10 and p1_b16 provide fault detection and warning behavior, but block p1_b11 explicitly disclaims recovery steps or other hazard responses."
+            }
+          }
+        },
+        {
+          "sub_id": "B5.2",
+          "claim_text": "The document explains recovery steps or automated fault recovery procedures.",
+          "expected_evidence_type": "SAFETY_CONSTRAINT",
+          "is_mandatory": false,
+          "decomposition_rationale": "Fault recovery steps and hazard response handling.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXPLICIT_OMISSION",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b11",
+                  "page": 1,
+                  "excerpt": "The document does not explain recovery steps or other hazard responses."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "EXPLICIT_OMISSION",
+              "expected_rationale_notes": "Target document explicitly disclaims recovery steps and other hazard responses."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "parent_id": "B6",
+      "section_name": "6. Performance and Verification",
+      "topic_label": "Acceptance criteria",
+      "description": "Include at least one measurable performance or quality target that can be verified during testing.",
+      "is_mandatory": true,
+      "expected_compliance_status": "NON_COMPLIANT",
+      "sub_requirements": [
+        {
+          "sub_id": "B6.1",
+          "claim_text": "The document specifies at least one measurable numeric target, capacity limit, response-time threshold, or pass/fail criterion.",
+          "expected_evidence_type": "NUMERIC_TARGET",
+          "is_mandatory": true,
+          "decomposition_rationale": "Explicit quantitative acceptance metric.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXPLICIT_OMISSION",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b14",
+                  "page": 1,
+                  "excerpt": "No numeric response-time target, capacity limit, or explicit acceptance threshold is provided."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "EXPLICIT_OMISSION",
+              "expected_rationale_notes": "Target document explicitly states no numeric response-time target, capacity limit, or acceptance threshold is provided."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "parent_id": "B7",
+      "section_name": "7. Testing",
+      "topic_label": "Testing",
+      "description": "Describe how the system will be checked, including test scenarios, expected outputs, or sign-off criteria.",
+      "is_mandatory": true,
+      "expected_compliance_status": "FULLY_COMPLIANT",
+      "sub_requirements": [
+        {
+          "sub_id": "B7.1",
+          "claim_text": "The document describes how the system is tested, verified, or validated through test scenarios.",
+          "expected_evidence_type": "FACTUAL_STATEMENT",
+          "is_mandatory": true,
+          "decomposition_rationale": "Testing methodology and operator verification actions.",
+          "ground_truth": {
+            "retrieval": {
+              "evidence_presence": "EXISTS",
+              "expected_evidence": [
+                {
+                  "block_id": "p1_b16",
+                  "page": 1,
+                  "excerpt": "During testing, an operator will confirm that live readings appear, historical values can be opened, and a warning is shown when a sensor connection is lost."
+                }
+              ]
+            },
+            "verification": {
+              "expected_status": "FULFILLED",
+              "expected_rationale_notes": "Target validation section details operator verification testing for live readings, historical data, and sensor loss warnings."
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "expected_document_compliance": {
+    "mandatory_total": 10,
+    "mandatory_fulfilled": 8,
+    "mandatory_coverage_pct": 80.0,
+    "optional_total": 2,
+    "optional_fulfilled": 0,
+    "optional_coverage_pct": 0.0,
+    "expected_status_counts": {
+      "FULFILLED": 8,
+      "EXPLICIT_OMISSION": 3,
+      "CONTRADICTED": 0,
+      "MISSING": 0,
+      "NEEDS_REVIEW": 1
+    },
+    "verdict": "CONDITIONALLY_COMPLIANT"
+  }
+}
