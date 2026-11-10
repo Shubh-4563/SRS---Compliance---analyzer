@@ -126,13 +126,17 @@ id_ed25519
 \#*\#
 
 # -----------------------------------------------------------------------------
-# OS / temporary files
+# OS / temporary files & cloud sync artefacts
 # -----------------------------------------------------------------------------
 *.log
 *.tmp
 *.bak
 Thumbs.db
 Desktop.ini
+*.gdoc
+*.gsheet
+*.gslides
+
 
 # -----------------------------------------------------------------------------
 # Data files — uncomment if you ever add proprietary/real-world SRS documents
