@@ -12,6 +12,7 @@ from src.benchmarks.manifest_validator import (
     BenchmarkCrossFieldError,
     BenchmarkIntegrityError,
 )
+from src.benchmarks.benchmark_runner import BenchmarkRunner
 
 __all__ = [
     "validate_schema",
@@ -23,5 +24,6 @@ __all__ = [
     "BenchmarkSchemaError",
     "BenchmarkCrossFieldError",
     "BenchmarkIntegrityError",
+    "BenchmarkRunner",
 ]
 

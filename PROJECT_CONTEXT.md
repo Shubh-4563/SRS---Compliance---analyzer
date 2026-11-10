@@ -179,26 +179,33 @@ Phase 2.6 establishes a declarative ground-truth benchmark suite for validating 
 * Layer B (Cross-Field Business Logic): Validates ID uniqueness, `{parent_id}.` sub-requirement ID prefix hierarchy, non-empty parents, parent mandatory consistency, evidence presence compatibility, status conservation, coverage math, parent aggregation waterfall, and document verdict consistency.
 * Layer C (Document Integrity & Grounding): Resolves reference and target PDFs, verifies 64-character SHA-256 hashes, validates total page counts, executes `TargetPDFParser` to build a live block map, verifies block ID existence, checks page number consistency, and confirms whitespace-normalized excerpt text grounding.
 
+### Benchmark Evaluation Runner (`src/benchmarks/benchmark_runner.py`)
+* Automation Engine: Executes the live `CompliancePipeline` against declared benchmark manifests and computes multi-tiered comparative metrics.
+* Retrieval Performance Metrics: Evaluates Hit@1, Hit@3, Hit@5, Mean Reciprocal Rank (MRR), Precision@K, and Recall@K for ground-truth evidence blocks.
+* Evidence Verification Accuracy: Computes classification accuracy, macro-averaged Precision/Recall/F1 scores, per-status metrics, and complete confusion matrices across all five verification statuses.
+* Hierarchical Compliance Metrics: Assesses exact match on parent section compliance statuses, overall document verdict, and mandatory coverage percentage differences.
+* Root-Cause Diagnostics: Emits actionable `DiscrepancyItem` records categorizing retrieval misses, status mismatches, and verdict divergence.
+
 
 ## 9. Current Development Status
 
-The project is currently at the boundary of Phase 2.6.2.2 and Phase 2.6.2.3:
+The project has completed Phase 2.6 end-to-end:
 
 * Phase 2.5 (V2 Pipeline & CLI Integration): Complete, tested, committed (`4e671b1`), and pushed to GitHub main.
 * Phase 2.6.1 (Ground Truth Gap Analysis): Complete; evaluated existing test packs Pair A and Pair B.
 * Phase 2.6.2.1 (Schema Specification): Complete; Draft 2020-12 JSON Schema finalized and approved.
 * Phase 2.6.2.2 (Declarative Validator Implementation): Complete and committed (`ed4c95f`).
-  * Created `src/benchmarks/schemas/benchmark_manifest.schema.json`.
-  * Created `src/models/benchmark.py`.
-  * Updated `src/models/__init__.py`.
-  * Created `src/benchmarks/manifest_validator.py` and `src/benchmarks/__init__.py`.
-  * Created `tests/test_v2_benchmark_validator.py` (32 tests passing).
-* Phase 2.6.2.3 (Declarative Manifest Migration for Pair A and Pair B): Complete in local workspace.
-  * Created `data/benchmarks/pair_a_lab_report.json`: Pair A manifest with 10 sub-requirements, 100% verified across Layers A, B, and C.
-  * Created `data/benchmarks/pair_b_srs.json`: Pair B manifest with 12 sub-requirements, 100% verified across Layers A, B, and C.
-  * Created `tests/test_benchmark_manifests.py`: 6 tests covering end-to-end manifest validation, ground truth verification, and tamper detection.
-  * Total test count increased from 138 to 144 tests passing.
-* Phase 2.6.3 (Automated Benchmark Evaluation CLI & Accuracy Runner): Ready to begin upon user approval.
+* Phase 2.6.2.3 (Declarative Manifest Migration for Pair A and Pair B): Complete and committed (`ee19d71`).
+  * `data/benchmarks/pair_a_lab_report.json`: Pair A manifest (10 sub-requirements, 100% verified across Layers A, B, and C).
+  * `data/benchmarks/pair_b_srs.json`: Pair B manifest (12 sub-requirements, 100% verified across Layers A, B, and C).
+  * `tests/test_benchmark_manifests.py`: 6 tests covering end-to-end manifest validation, ground truth verification, and tamper detection.
+* Phase 2.6.3 (Automated Benchmark Evaluation CLI & Accuracy Runner): Complete in local workspace.
+  * Created `src/models/benchmark_evaluation.py`: Strongly typed benchmark evaluation data models.
+  * Created `src/benchmarks/benchmark_runner.py`: Benchmark evaluation runner and CLI tool.
+  * Created `scripts/evaluate_manifest_benchmark.py`: Convenience CLI evaluation script.
+  * Created `tests/test_benchmark_runner.py`: 7 tests covering metric computations, discrepancy logging, formatting, and live end-to-end evaluation.
+  * Accuracy: 100.0% verification accuracy and 0 discrepancies across both Pair A and Pair B.
+  * Total test count: 151/151 tests passing.
 
 
 ## 10. Test Suite & Quality Assurance
@@ -213,10 +220,11 @@ The test suite provides 100% automated coverage across all subsystems:
 * `tests/test_v2_reporting.py`: Terminal, markdown, and JSON report formatters, Unicode preservation, and escaping (19 tests).
 * `tests/test_v2_benchmark_validator.py`: Layer A, Layer B, Layer C, and end-to-end validator unit tests (32 tests).
 * `tests/test_benchmark_manifests.py`: Production Pair A and Pair B manifest validation, ground truth verification, and tamper detection (6 tests).
+* `tests/test_benchmark_runner.py`: Metric calculation unit tests, discrepancy logging, table-free formatting, and live evaluation (7 tests).
 
 ### Verification Execution
 * Execution Command: `python3 -m unittest discover -s tests -p "test_*.py" -v`
-* Result: 144 tests ran in ~18 seconds with 0 failures, 0 errors, and 0 skips.
+* Result: 151 tests ran in ~31 seconds with 0 failures, 0 errors, and 0 skips (100% passing).
 
 
 ## 11. Engineering Invariants & Guardrails
@@ -243,21 +251,19 @@ All future development must strictly maintain the following invariants:
 * Legacy Code Harmonization: Legacy V1 classes in `src/compliance/` remain for backwards compatibility; future phases may deprecate them once V2 benchmark parity is fully established.
 
 
-## 13. Immediate Next Steps: Phase 2.6.3 Plan
+## 13. Immediate Next Steps: Future Roadmap
 
-With Phase 2.6.2.3 complete, the authoritative declarative benchmarks for Pair A and Pair B are established. The next phase is **Phase 2.6.3: Automated Benchmark Evaluation CLI & Accuracy Runner**:
+With Phase 2.6 (Benchmark Manifests & Evaluation System) fully completed, the project has established a rigorous ground-truth evaluation harness. Potential future phases include:
 
-1. Implement Benchmark Evaluator Runner:
-   * Create `src/benchmarks/benchmark_runner.py` (or CLI `scripts/evaluate_manifest_benchmark.py`).
-   * Runs the V2 `CompliancePipeline` against the benchmark pair reference and target documents.
-   * Compares actual pipeline outputs against ground truth from the declarative manifest.
+1. Phase 2.7 (Extended Real-World Benchmark Expansion):
+   * Add Pair C and Pair D covering complex multi-page SRS documents (e.g. IEEE 830, ISO/IEC/IEEE 29148 standards).
+   * Evaluate retrieval precision under larger distractor block pools (30+ pages).
 
-2. Metrics & Accuracy Evaluation:
-   * Retrieval Metrics: Precision@K, Recall@K, Mean Reciprocal Rank (MRR) for expected evidence blocks.
-   * Verification Metrics: Classification Accuracy, Macro-F1 score across statuses (`FULFILLED`, `EXPLICIT_OMISSION`, `CONTRADICTED`, `MISSING`, `NEEDS_REVIEW`).
-   * Aggregation Metrics: Exact match on Parent Compliance Statuses and Document Verdict.
+2. Phase 2.8 (Model Ablation & Lightweight Verification Options):
+   * Benchmark smaller/faster cross-encoders vs current DeBERTa-v3 to optimize CPU latency.
+   * Evaluate ONNX or quantized inference for edge or low-resource deployments.
 
-3. Detailed Diagnostics & Gap Reporting:
-   * Generates diagnostic reports pinpointing discrepancies between ground truth annotations and model predictions (retrieval misses, NLI confidence edge cases, contradictory evidence conflicts).
+3. Phase 2.9 (Scanned Document & OCR Ingestion):
+   * Integrate Tesseract / PyMuPDF OCR pipeline for handling scanned specification documents.
 
 

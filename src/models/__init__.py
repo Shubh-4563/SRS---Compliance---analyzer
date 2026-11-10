@@ -38,6 +38,17 @@ from src.models.benchmark import (
     BenchmarkExpectedCompliance,
     BenchmarkManifest,
 )
+from src.models.benchmark_evaluation import (
+    SubRequirementRetrievalMetric,
+    SubRequirementVerificationMetric,
+    ParentComplianceMetric,
+    AggregateRetrievalMetrics,
+    StatusClassMetric,
+    AggregateVerificationMetrics,
+    AggregateComplianceMetrics,
+    DiscrepancyItem,
+    BenchmarkEvaluationReport,
+)
 
 __all__ = [
     "BlockType",
@@ -71,4 +82,13 @@ __all__ = [
     "BenchmarkExpectedStatusCounts",
     "BenchmarkExpectedCompliance",
     "BenchmarkManifest",
+    "SubRequirementRetrievalMetric",
+    "SubRequirementVerificationMetric",
+    "ParentComplianceMetric",
+    "AggregateRetrievalMetrics",
+    "StatusClassMetric",
+    "AggregateVerificationMetrics",
+    "AggregateComplianceMetrics",
+    "DiscrepancyItem",
+    "BenchmarkEvaluationReport",
 ]
