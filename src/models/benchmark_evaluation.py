@@ -367,3 +367,4 @@ class BenchmarkEvaluationReport:
                 lines.append(f"  * Actual: `{disc.actual}`")
 
         return "\n".join(lines)
+
