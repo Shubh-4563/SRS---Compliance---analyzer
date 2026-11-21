@@ -375,3 +375,4 @@ if __name__ == "__main__":
     out_file = Path("How_To_Test_New_PDFs_Guide.pdf")
     build_pdf(out_file)
     print(f"Generated: {out_file.resolve()} ({out_file.stat().st_size} bytes)")
+
